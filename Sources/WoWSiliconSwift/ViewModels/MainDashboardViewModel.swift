@@ -9,14 +9,18 @@ final class MainDashboardViewModel: ObservableObject {
     @Published private(set) var subtitleText: String = "Launch World Of Warcraft from 2006-2010 on Apple Silicon Macs"
 
     @Published private(set) var gamePathStatus = StatusValue(text: "Not set", level: .error)
-    @Published private(set) var crossOverPathStatus = StatusValue(text: "Not set", level: .error)
 
     @Published private(set) var gamePatchStatus = StatusValue(text: "Not Applied", level: .error)
     @Published private(set) var isGamePatched: Bool = false
     @Published private(set) var isGamePatchActionable: Bool = false
-    @Published private(set) var crossOverPatchStatus = StatusValue(text: "Not Applied", level: .error)
-    @Published private(set) var isCrossOverPatched: Bool = false
-    @Published private(set) var isCrossOverPatchActionable: Bool = false
+    /// True while the bundled Wine runtime validates. Defaults to true so the error
+    /// row never flashes before the first refreshPatchStatuses pass completes.
+    @Published private(set) var isRuntimeValid: Bool = true
+
+    /// Surfaced on the dashboard ONLY when the bundled runtime is broken.
+    var runtimeStatus: StatusValue? {
+        isRuntimeValid ? nil : StatusValue(text: "missing — reinstall WoWSilicon", level: .error)
+    }
     @Published private(set) var isGameOperationInProgress: Bool = false
     @Published private(set) var isUnpatchingOperation: Bool = false
     @Published private(set) var patchFeedback: PatchFeedback?
@@ -120,7 +124,6 @@ final class MainDashboardViewModel: ObservableObject {
         newVersion.id = newID
         newVersion.displayName = name
         newVersion.gamePath = ""
-        newVersion.crossOverPath = ""
         newVersion.wantsLauncher = wantsLauncher
         newVersion.launcherExePath = ""
         versionManager.versions[newID] = newVersion
@@ -233,24 +236,6 @@ final class MainDashboardViewModel: ObservableObject {
         }
     }
 
-    func selectCrossOverPath() {
-        let panel = NSOpenPanel()
-        panel.title = "Select CrossOver Application"
-        panel.prompt = "Choose"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.treatsFilePackagesAsDirectories = true
-        panel.level = .modalPanel
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-
-        if panel.runModal() == .OK, let url = panel.url {
-            updateCurrentVersion { version in
-                version.crossOverPath = url.path
-            }
-        }
-    }
-
     func beginOptionsSession() {
         optionsSessionInitialVersionID = versionManager.currentVersionID
         optionsSessionInitialVanillaTweaksParameters = versionManager.currentVersion?.settings.vanillaTweaksParameters
@@ -310,7 +295,7 @@ final class MainDashboardViewModel: ObservableObject {
 
     func launchGame() {
         guard canLaunch, let currentVersion = versionManager.currentVersion else {
-            patchFeedback = PatchFeedback(title: "Cannot Launch", message: "Ensure the game path is set, Wine is installed, and both patches are applied.", isError: true)
+            patchFeedback = PatchFeedback(title: "Cannot Launch", message: "Ensure the game path is set and the game patch is applied.", isError: true)
             return
         }
 
@@ -478,13 +463,12 @@ final class MainDashboardViewModel: ObservableObject {
 
     var canInstallDependencies: Bool {
         guard let currentVersion else { return false }
-        let hasCrossOverPath = !currentVersion.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return hasCrossOverPath && isCrossOverPatched && !isDependencyInstallInProgress
+        let gamePathSet = !currentVersion.gamePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return isRuntimeValid && gamePathSet && !isDependencyInstallInProgress
     }
 
     func installVisualCppRuntime() {
         guard canInstallDependencies else { return }
-        guard currentVersion != nil else { return }
 
         isDependencyInstallInProgress = true
         visualCppRuntimeStatus = .inProgress("Installing...")
@@ -826,51 +810,6 @@ final class MainDashboardViewModel: ObservableObject {
         }
     }
 
-    func patchCrossOver() {
-        guard !isGameOperationInProgress, let version = versionManager.currentVersion else {
-            return
-        }
-
-        isGameOperationInProgress = true
-        isUnpatchingOperation = false
-
-        Task.detached { [weak self] in
-            do {
-                let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !crossOverPath.isEmpty else {
-                    throw PatchServiceError.crossOverNotFound
-                }
-                try PatchService.applyCrossOverPatch(crossOverPath: crossOverPath)
-                await self?.handlePatchCompletion(successTitle: "CrossOver Patch", message: "CrossOver patch applied successfully.", isGame: false)
-            } catch {
-                await self?.handlePatchError(error, title: "CrossOver Patch Failed", isGame: false)
-            }
-        }
-    }
-
-    func unpatchCrossOver() {
-        guard !isGameOperationInProgress, let version = versionManager.currentVersion else {
-            return
-        }
-
-        isGameOperationInProgress = true
-        isUnpatchingOperation = true
-
-        Task.detached { [weak self] in
-            do {
-                let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !crossOverPath.isEmpty else {
-                    throw PatchServiceError.crossOverNotFound
-                }
-                try PatchService.removeCrossOverPatch(crossOverPath: crossOverPath)
-                await self?.handlePatchCompletion(successTitle: "CrossOver Unpatch", message: "CrossOver unpatched successfully.", isGame: false)
-            } catch {
-                await self?.handlePatchError(error, title: "CrossOver Unpatch Failed", isGame: false)
-            }
-        }
-    }
-
-
     func clearPatchFeedback() {
         patchFeedback = nil
     }
@@ -899,16 +838,12 @@ final class MainDashboardViewModel: ObservableObject {
             supportsMods = false
             self.currentVersion = nil
             gamePathStatus = StatusValue(text: "Not set", level: .error)
-            crossOverPathStatus = StatusValue(text: "Not set", level: .error)
             gamePatchStatus = StatusValue(text: "Not Applied", level: .error)
-            crossOverPatchStatus = StatusValue(text: "Not Applied", level: .error)
             versions = versionManager.orderedVersions()
             currentVersionID = versionManager.currentVersionID
             patchStatusRefreshID += 1
             isGamePatched = false
             isGamePatchActionable = false
-            isCrossOverPatched = false
-            isCrossOverPatchActionable = false
             canLaunch = false
             currentVersionHasLauncher = false
             currentVersionWantsLauncher = false
@@ -925,17 +860,12 @@ final class MainDashboardViewModel: ObservableObject {
         versions = versionManager.orderedVersions()
         currentVersionID = versionManager.currentVersionID
         gamePathStatus = makePathStatus(for: currentVersion.gamePath)
-        crossOverPathStatus = makePathStatus(for: currentVersion.crossOverPath)
 
-        let crossOverPathSet = !currentVersion.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         gamePatchStatus = StatusValue(text: "Checking...", level: .info)
-        crossOverPatchStatus = StatusValue(text: crossOverPathSet ? "Checking..." : "Not Applied", level: crossOverPathSet ? .info : .error)
         isGamePatched = false
         isGamePatchActionable = false
-        isCrossOverPatched = false
-        isCrossOverPatchActionable = false
         canLaunch = false
-        refreshPatchStatuses(for: currentVersion, crossOverPathSet: crossOverPathSet)
+        refreshPatchStatuses(for: currentVersion)
 
         if currentVersion.hasLauncher && !FileManager.default.fileExists(atPath: currentVersion.launcherExePath) {
             versionManager.updateCurrentVersion { $0.launcherExePath = "" }
@@ -954,15 +884,13 @@ final class MainDashboardViewModel: ObservableObject {
         }
     }
 
-    private func refreshPatchStatuses(for version: GameVersion, crossOverPathSet: Bool) {
+    private func refreshPatchStatuses(for version: GameVersion) {
         patchStatusRefreshID += 1
         let refreshID = patchStatusRefreshID
 
-        Task.detached { [version, crossOverPathSet] in
+        Task.detached { [version] in
             let gamePatchDescriptor = PatchingStatusChecker.evaluateGamePatch(for: version)
-            let crossOverPatchDescriptor = PatchingStatusChecker.evaluateCrossOverPatch(
-                crossOverPath: crossOverPathSet ? version.crossOverPath : nil
-            )
+            let runtimeValid = (try? WineRuntime.shared.validatedWineBinaryURL()) != nil
 
             await MainActor.run { [weak self] in
                 guard let self else { return }
@@ -972,13 +900,10 @@ final class MainDashboardViewModel: ObservableObject {
                 self.gamePatchStatus = StatusValue(text: gamePatchDescriptor.text, level: gamePatchDescriptor.level)
                 self.isGamePatched = gamePatchDescriptor.applied
                 self.isGamePatchActionable = gamePatchDescriptor.actionable
-
-                self.crossOverPatchStatus = StatusValue(text: crossOverPatchDescriptor.text, level: crossOverPatchDescriptor.level)
-                self.isCrossOverPatched = crossOverPatchDescriptor.applied
-                self.isCrossOverPatchActionable = crossOverPatchDescriptor.actionable && crossOverPathSet
+                self.isRuntimeValid = runtimeValid
 
                 let gamePathReady = !version.gamePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                self.canLaunch = gamePathReady && gamePatchDescriptor.applied && crossOverPatchDescriptor.applied && crossOverPathSet
+                self.canLaunch = gamePathReady && gamePatchDescriptor.applied && runtimeValid
             }
         }
     }

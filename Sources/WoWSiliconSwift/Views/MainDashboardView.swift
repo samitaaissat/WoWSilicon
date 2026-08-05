@@ -40,20 +40,14 @@ struct MainDashboardView: View {
 
                 MainContentView(
                     gameStatus: viewModel.gamePathStatus,
-                    crossOverStatus: viewModel.crossOverPathStatus,
                     gamePatchStatus: viewModel.gamePatchStatus,
-                    crossOverPatchStatus: viewModel.crossOverPatchStatus,
+                    runtimeStatus: viewModel.runtimeStatus,
                     onSelectGamePath: viewModel.selectGamePath,
-                    onSelectCrossOverPath: viewModel.selectCrossOverPath,
                     isGamePatched: viewModel.isGamePatched,
                     isGamePatchActionable: viewModel.isGamePatchActionable,
-                    isCrossOverPatched: viewModel.isCrossOverPatched,
-                    isCrossOverPatchActionable: viewModel.isCrossOverPatchActionable,
                     isGameOperationInProgress: viewModel.isGameOperationInProgress,
                     onPatchGame: viewModel.patchGame,
                     onUnpatchGame: viewModel.unpatchGame,
-                    onPatchCrossOver: viewModel.patchCrossOver,
-                    onUnpatchCrossOver: viewModel.unpatchCrossOver,
                     wantsLauncher: viewModel.currentVersionWantsLauncher,
                     launcherPathStatus: viewModel.launcherPathStatus,
                     onSelectLauncherPath: viewModel.selectLauncherPath
@@ -340,20 +334,14 @@ struct HeaderView: View {
 
 struct MainContentView: View {
     let gameStatus: StatusValue
-    let crossOverStatus: StatusValue
     let gamePatchStatus: StatusValue
-    let crossOverPatchStatus: StatusValue
+    let runtimeStatus: StatusValue?
     let onSelectGamePath: () -> Void
-    let onSelectCrossOverPath: () -> Void
     let isGamePatched: Bool
     let isGamePatchActionable: Bool
-    let isCrossOverPatched: Bool
-    let isCrossOverPatchActionable: Bool
     let isGameOperationInProgress: Bool
     let onPatchGame: () -> Void
     let onUnpatchGame: () -> Void
-    let onPatchCrossOver: () -> Void
-    let onUnpatchCrossOver: () -> Void
     let wantsLauncher: Bool
     let launcherPathStatus: StatusValue
     let onSelectLauncherPath: () -> Void
@@ -362,6 +350,13 @@ struct MainContentView: View {
         VStack(alignment: .leading, spacing: 24) {
 
             VStack(alignment: .leading, spacing: 12) {
+                if let runtimeStatus {
+                    HStack(spacing: 12) {
+                        Text("Runtime:")
+                            .frame(width: 150, alignment: .leading)
+                        StatusLabel(value: runtimeStatus)
+                    }
+                }
                 if wantsLauncher {
                     PathRow(
                         label: "Launcher Path:",
@@ -370,12 +365,6 @@ struct MainContentView: View {
                         action: onSelectLauncherPath
                     )
                 }
-                PathRow(
-                    label: "CrossOver:",
-                    status: crossOverStatus,
-                    buttonTitle: "Set/Change",
-                    action: onSelectCrossOverPath
-                )
                 PathRow(
                     label: "Game Path:",
                     status: gameStatus,
@@ -389,21 +378,11 @@ struct MainContentView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 PatchRow(
-                    label: "CrossOver Patch:",
-                    status: crossOverPatchStatus,
-                    primaryActionTitle: "Patch",
-                    secondaryActionTitle: "Unpatch",
-                    primaryDisabled: isGameOperationInProgress || !isCrossOverPatchActionable || isCrossOverPatched,
-                    secondaryDisabled: isGameOperationInProgress || !isCrossOverPatchActionable || !isCrossOverPatched,
-                    primaryAction: onPatchCrossOver,
-                    secondaryAction: onUnpatchCrossOver
-                )
-                PatchRow(
                     label: "Game Patch:",
                     status: gamePatchStatus,
                     primaryActionTitle: "Patch",
                     secondaryActionTitle: "Unpatch",
-                    primaryDisabled: isGameOperationInProgress || !isGamePatchActionable || isGamePatched || !isCrossOverPatched,
+                    primaryDisabled: isGameOperationInProgress || !isGamePatchActionable || isGamePatched,
                     secondaryDisabled: isGameOperationInProgress || !isGamePatchActionable || !isGamePatched,
                     primaryAction: onPatchGame,
                     secondaryAction: onUnpatchGame
@@ -633,7 +612,7 @@ private struct AddVersionSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Toggle("Use third-party launcher", isOn: $useLauncher)
                 if useLauncher {
-                    Text("You can install the launcher after setting up CrossOver.")
+                    Text("You can install the launcher once the game patch is applied.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
