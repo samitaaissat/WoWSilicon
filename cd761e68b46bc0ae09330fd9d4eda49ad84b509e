@@ -1,0 +1,50 @@
+{
+    "version": "0.1.0",
+    "id": "6bf8b7da-a85c-4f7c-ba1b-2f7a3908a31b",
+    "timestamp": "2026-08-05T06:00:58.271252Z",
+    "vcs": {
+        "type": "git",
+        "revision": "cd761e68b46bc0ae09330fd9d4eda49ad84b509e",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "docs/superpowers/specs/2026-08-05-v3-bundled-wine-design.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:b1b4c4cb8cf0eb479b5c04694b940c9b045b3597",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.220"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 68
+                        },
+                        {
+                            "start_line": 70,
+                            "end_line": 72
+                        },
+                        {
+                            "start_line": 74,
+                            "end_line": 77
+                        },
+                        {
+                            "start_line": 79,
+                            "end_line": 123
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
