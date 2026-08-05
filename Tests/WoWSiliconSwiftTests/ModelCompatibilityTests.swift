@@ -44,4 +44,35 @@ final class ModelCompatibilityTests: XCTestCase {
         XCTAssertEqual(settings.cursorSizeMultiplier, 4)
         XCTAssertTrue(settings.enableLibSiliconPatch)
     }
+
+    func testGameVersionDecodesAndRoundTripsV2CrossOverPath() throws {
+        let json = """
+        {
+          "id": "vanillasilicon",
+          "display_name": "VanillaSilicon (1.12.1)",
+          "wow_version": "1.12.1",
+          "game_path": "/Games/WoW",
+          "crossover_path": "/Applications/CrossOver.app",
+          "supports_vanilla_tweaks": true,
+          "supports_dll_loading": true,
+          "uses_rosetta_patching": true,
+          "uses_divx_decoder_patch": false,
+          "optimization_level": "high"
+        }
+        """
+
+        let version = try JSONDecoder().decode(GameVersion.self, from: Data(json.utf8))
+        XCTAssertEqual(version.crossOverPath, "/Applications/CrossOver.app")
+        XCTAssertEqual(version.gamePath, "/Games/WoW")
+
+        // Re-encode: the stored value must survive on disk (backward compat with v2).
+        let reencoded = try JSONEncoder().encode(version)
+        let object = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: reencoded) as? [String: Any]
+        )
+        XCTAssertEqual(object["crossover_path"] as? String, "/Applications/CrossOver.app")
+
+        let roundTripped = try JSONDecoder().decode(GameVersion.self, from: reencoded)
+        XCTAssertEqual(roundTripped.crossOverPath, "/Applications/CrossOver.app")
+    }
 }
