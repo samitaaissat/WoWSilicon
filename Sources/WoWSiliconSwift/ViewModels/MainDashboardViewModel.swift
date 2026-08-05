@@ -211,10 +211,8 @@ final class MainDashboardViewModel: ObservableObject {
     }
 
     func forceQuitWine() {
-        let crossOverPath = versionManager.currentVersion?.crossOverPath
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            LaunchService.forceQuitWine(crossOverPath: crossOverPath.isEmpty ? nil : crossOverPath)
+            LaunchService.forceQuitWine()
             DispatchQueue.main.async { self?.refreshSnapshot() }
         }
     }

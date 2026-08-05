@@ -5,8 +5,6 @@ enum LaunchServiceError: LocalizedError {
     case alreadyRunning
     case gamePathMissing
     case rosettaMissing(String)
-    case wineMissing
-    case wineloader2Missing(String)
     case executableMissing(String)
     case vanillaTweaksMissing
     case patchNotApplied
@@ -20,12 +18,8 @@ enum LaunchServiceError: LocalizedError {
             return "The game is already running."
         case .gamePathMissing:
             return "Game path is not set. Please configure it before launching."
-        case .rosettaMissing(let path):
-            return "rosettax87 executable not found at \(path). Re-apply the game patch and try again."
-        case .wineMissing:
-            return "CrossOver wineloader not found. Please ensure you have applied the CrossOver patch."
-        case .wineloader2Missing(let path):
-            return "wineloader2 not found at \(path). Please apply the CrossOver patch first."
+        case .rosettaMissing:
+            return "Bundled rosettax87 loader not found. Please reinstall WoWSilicon."
         case .executableMissing(let path):
             return "WoW executable not found at \(path). Please verify your game installation."
         case .vanillaTweaksMissing:
@@ -82,9 +76,7 @@ final class LaunchService: @unchecked Sendable {
         let version: GameVersion
         let gameURL: URL
         let wowExecutableURL: URL
-        let rosettaURL: URL
         let shellCommand: String
-        let wineloader2Path: String
     }
 
     private func prepareLaunchArtifacts(for version: GameVersion) throws -> LaunchConfiguration {
@@ -92,21 +84,13 @@ final class LaunchService: @unchecked Sendable {
         guard !trimmedGame.isEmpty else { throw LaunchServiceError.gamePathMissing }
 
         let gameURL = URL(fileURLWithPath: trimmedGame, isDirectory: true)
-        let rosettaURL = gameURL
-            .appendingPathComponent("rosettax87", isDirectory: true)
-            .appendingPathComponent("rosettax87", isDirectory: false)
-        guard fileManager.isExecutableFile(atPath: rosettaURL.path) else {
-            throw LaunchServiceError.rosettaMissing(rosettaURL.path)
-        }
 
-        // Check if wineloader2 is available
-        let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-            ? "/Applications/CrossOver.app" 
-            : version.crossOverPath
-        let wineloader2Path = crossOverPath + "/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wineloader2"
-        
-        guard fileManager.isExecutableFile(atPath: wineloader2Path) else {
-            throw LaunchServiceError.wineloader2Missing(wineloader2Path)
+        let wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
+        let rosettaLoaderURL: URL
+        do {
+            rosettaLoaderURL = try WineRuntime.shared.validatedRosettaLoaderURL()
+        } catch {
+            throw LaunchServiceError.rosettaMissing(WineRuntime.shared.rosettaLoaderURL?.path ?? "app bundle resources")
         }
 
         let wowExecutableURL: URL
@@ -137,15 +121,11 @@ final class LaunchService: @unchecked Sendable {
             deleteWDBDirectories(at: gameURL)
         }
 
-        let crossOverURL = URL(fileURLWithPath: crossOverPath, isDirectory: true)
-        let crossOverVersion = PatchService.detectCrossOverVersion(at: crossOverURL)
-
-        let shellCommand = makeShellCommand(
-            gameURL: gameURL,
-            rosettaURL: rosettaURL,
-            wowURL: wowExecutableURL,
-            wineloader2Path: wineloader2Path,
-            crossOverVersion: crossOverVersion,
+        let shellCommand = LaunchService.makeShellCommand(
+            gamePath: gameURL.path,
+            executablePath: wowExecutableURL.path,
+            wineBinaryPath: wineBinaryURL.path,
+            rosettaLoaderPath: rosettaLoaderURL.path,
             settings: version.settings
         )
 
@@ -153,9 +133,7 @@ final class LaunchService: @unchecked Sendable {
             version: version,
             gameURL: gameURL,
             wowExecutableURL: wowExecutableURL,
-            rosettaURL: rosettaURL,
-            shellCommand: shellCommand,
-            wineloader2Path: wineloader2Path
+            shellCommand: shellCommand
         )
     }
 
@@ -244,54 +222,59 @@ final class LaunchService: @unchecked Sendable {
         }
     }
 
-    private func makeShellCommand(gameURL: URL, rosettaURL: URL, wowURL: URL, wineloader2Path: String, crossOverVersion: PatchService.CrossOverVersion, settings: VersionSettings) -> String {
-        let game = doubleQuote(gameURL.path)
-        let rosettaBinary = doubleQuote(rosettaURL.path)
-        let wow = doubleQuote(wowURL.path)
-        let wineloader2 = doubleQuote(wineloader2Path)
-
+    static func makeShellCommand(
+        gamePath: String,
+        executablePath: String,
+        wineBinaryPath: String,
+        rosettaLoaderPath: String?,
+        settings: VersionSettings,
+        extraArguments: [String] = []
+    ) -> String {
         let mtlValue = settings.enableMetalHud ? "1" : "0"
-        let baseEnv = "WINEDLLOVERRIDES=\"d3d9=n,b\" MTL_HUD_ENABLED=\(mtlValue) MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
+        let baseEnv = "WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=\(mtlValue) MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
         let custom = settings.environmentVariables
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: ";", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let envPart = custom.isEmpty ? baseEnv : "\(custom) \(baseEnv)"
 
-        if crossOverVersion == .v26 {
-            return "cd \(game) && ROSETTA_X87_PATH=\(rosettaBinary) \(envPart) \(wineloader2) \(wow)"
-        } else {
-            return "cd \(game) && \(envPart) \(rosettaBinary) \(wineloader2) \(wow)"
+        var envParts: [String] = []
+        if let rosettaLoaderPath {
+            envParts.append("ROSETTA_X87_PATH=\(doubleQuote(rosettaLoaderPath))")
         }
+        if !custom.isEmpty {
+            envParts.append(custom)
+        }
+        envParts.append(baseEnv)
+
+        var command = "cd \(doubleQuote(gamePath)) && \(envParts.joined(separator: " ")) \(doubleQuote(wineBinaryPath)) \(doubleQuote(executablePath))"
+        for argument in extraArguments {
+            command += " \(doubleQuote(argument))"
+        }
+        return command
     }
 
-    private func doubleQuote(_ value: String) -> String {
+    private static func doubleQuote(_ value: String) -> String {
         "\"" + value.replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     func launchInstaller(installerURL: URL, version: GameVersion, completion: @escaping @Sendable (Result<Void, LaunchServiceError>) -> Void) {
-        let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "/Applications/CrossOver.app"
-            : version.crossOverPath
-        let wineloader2Path = crossOverPath + "/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wineloader2"
-
-        guard fileManager.isExecutableFile(atPath: wineloader2Path) else {
-            DispatchQueue.main.async { completion(.failure(.wineloader2Missing(wineloader2Path))) }
+        let wineBinaryURL: URL
+        do {
+            wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
+        } catch {
+            DispatchQueue.main.async { completion(.failure(.processLaunchFailed(error.localizedDescription))) }
             return
         }
 
-        let crossOverURL = URL(fileURLWithPath: crossOverPath, isDirectory: true)
-        let crossOverVersion = PatchService.detectCrossOverVersion(at: crossOverURL)
+        let rosettaLoaderPath = (try? WineRuntime.shared.validatedRosettaLoaderURL())?.path
 
-        let installer = doubleQuote(installerURL.path)
-        let wineloader2 = doubleQuote(wineloader2Path)
-
-        let shellCommand: String
-        if crossOverVersion == .v26 {
-            shellCommand = "WINEDLLOVERRIDES=\"d3d9=n,b\" \(wineloader2) \(installer)"
-        } else {
-            shellCommand = "WINEDLLOVERRIDES=\"d3d9=n,b\" \(wineloader2) \(installer)"
-        }
+        let shellCommand = LaunchService.makeShellCommand(
+            gamePath: installerURL.deletingLastPathComponent().path,
+            executablePath: installerURL.path,
+            wineBinaryPath: wineBinaryURL.path,
+            rosettaLoaderPath: rosettaLoaderPath,
+            settings: version.settings
+        )
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
@@ -322,56 +305,32 @@ final class LaunchService: @unchecked Sendable {
             return
         }
 
-        let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "/Applications/CrossOver.app"
-            : version.crossOverPath
-        let wineloader2Path = crossOverPath + "/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wineloader2"
-
-        guard fileManager.isExecutableFile(atPath: wineloader2Path) else {
-            DispatchQueue.main.async { completion(.failure(.wineloader2Missing(wineloader2Path))) }
+        let wineBinaryURL: URL
+        do {
+            wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
+        } catch {
+            DispatchQueue.main.async { completion(.failure(.processLaunchFailed(error.localizedDescription))) }
             return
         }
 
-        let crossOverURL = URL(fileURLWithPath: crossOverPath, isDirectory: true)
-        let crossOverVersion = PatchService.detectCrossOverVersion(at: crossOverURL)
+        let rosettaLoaderURL: URL
+        do {
+            rosettaLoaderURL = try WineRuntime.shared.validatedRosettaLoaderURL()
+        } catch {
+            let expected = WineRuntime.shared.rosettaLoaderURL?.path ?? "app bundle resources"
+            DispatchQueue.main.async { completion(.failure(.rosettaMissing(expected))) }
+            return
+        }
 
         let exeURL = URL(fileURLWithPath: exePath)
-        let launcherDir = doubleQuote(exeURL.deletingLastPathComponent().path)
-        let exeName = doubleQuote(exeURL.lastPathComponent)
-        let wineloader2 = doubleQuote(wineloader2Path)
-
-        let mtlValue = version.settings.enableMetalHud ? "1" : "0"
-        let baseEnv = "WINEDLLOVERRIDES=\"d3d9=n,b\" MTL_HUD_ENABLED=\(mtlValue) MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
-        let custom = version.settings.environmentVariables
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: ";", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let envPart = custom.isEmpty ? baseEnv : "\(custom) \(baseEnv)"
-
-        let gamePatched = PatchingStatusChecker.evaluateGamePatch(for: version).applied
-
-        let shellCommand: String
-        if crossOverVersion == .v26 {
-            if gamePatched {
-                let rosettaURL = URL(fileURLWithPath: version.gamePath)
-                    .appendingPathComponent("rosettax87")
-                    .appendingPathComponent("rosettax87")
-                let rosettaBinary = doubleQuote(rosettaURL.path)
-                shellCommand = "cd \(launcherDir) && ROSETTA_X87_PATH=\(rosettaBinary) \(envPart) \(wineloader2) \(exeName) --disable-gpu --in-process-gpu"
-            } else {
-                shellCommand = "cd \(launcherDir) && \(envPart) \(wineloader2) \(exeName) --disable-gpu --in-process-gpu"
-            }
-        } else {
-            if gamePatched {
-                let rosettaURL = URL(fileURLWithPath: version.gamePath)
-                    .appendingPathComponent("rosettax87")
-                    .appendingPathComponent("rosettax87")
-                let rosettaBinary = doubleQuote(rosettaURL.path)
-                shellCommand = "cd \(launcherDir) && \(envPart) \(rosettaBinary) \(wineloader2) \(exeName) --disable-gpu --in-process-gpu"
-            } else {
-                shellCommand = "cd \(launcherDir) && \(envPart) \(wineloader2) \(exeName) --disable-gpu --in-process-gpu"
-            }
-        }
+        let shellCommand = LaunchService.makeShellCommand(
+            gamePath: exeURL.deletingLastPathComponent().path,
+            executablePath: exeURL.path,
+            wineBinaryPath: wineBinaryURL.path,
+            rosettaLoaderPath: rosettaLoaderURL.path,
+            settings: version.settings,
+            extraArguments: ["--disable-gpu", "--in-process-gpu"]
+        )
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
@@ -519,7 +478,7 @@ final class LaunchService: @unchecked Sendable {
 
     // MARK: - Force quit
 
-    static func forceQuitWine(crossOverPath: String?) {
+    static func forceQuitWine() {
         func pkill(_ args: [String]) {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
@@ -532,12 +491,9 @@ final class LaunchService: @unchecked Sendable {
         // pkill -f matches against the full argument string, so matching ".exe" catches them all.
         pkill(["-9", "-f", ".exe"])
 
-        // Kill wineserver and wineloader2 by path
-        let resolvedCrossOverPath = crossOverPath ?? "/Applications/CrossOver.app"
-        let base = resolvedCrossOverPath + "/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application"
-        for binary in ["wineserver", "wineloader", "wineloader2"] {
-            pkill(["-9", "-f", base + "/" + binary])
-        }
+        // Kill the bundled runtime's wine and wineserver by path
+        pkill(["-9", "-f", WineRuntime.shared.wineBinaryURL.path])
+        pkill(["-9", "-f", WineRuntime.shared.wineserverBinaryURL.path])
 
         // Kill rosettax87 instances
         pkill(["-9", "-f", "rosettax87"])
