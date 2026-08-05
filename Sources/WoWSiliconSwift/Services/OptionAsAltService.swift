@@ -1,14 +1,11 @@
 import Foundation
 
 enum OptionAsAltServiceError: LocalizedError {
-    case wineMissing
     case commandFailed(String)
     case registryWriteFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .wineMissing:
-            return "CrossOver wineloader not found. Please ensure you have applied the CrossOver patch."
         case .commandFailed(let output):
             return output.isEmpty ? "Failed to update Wine registry." : output
         case .registryWriteFailed(let reason):
@@ -21,10 +18,8 @@ enum OptionAsAltService {
     private static let leftOptionLine = #""LeftOptionIsAlt"="Y""#
     private static let rightOptionLine = #""RightOptionIsAlt"="Y""#
 
-    static func setOptionAsAlt(enabled: Bool, crossOverPath: String? = nil) throws {
-        guard let wineExecutable = WineRegistrySupport.wineloaderPath(from: crossOverPath) else {
-            throw OptionAsAltServiceError.wineMissing
-        }
+    static func setOptionAsAlt(enabled: Bool) throws {
+        let wineExecutable = try WineRegistrySupport.wineBinaryPath()
 
         let prefixURL = WineRegistrySupport.winePrefixURL()
         try FileManager.default.createDirectory(at: prefixURL, withIntermediateDirectories: true)
@@ -57,8 +52,8 @@ enum OptionAsAltService {
         }
     }
 
-    static func isOptionAsAltEnabled(crossOverPath: String? = nil) -> Bool {
-        if let accurate = isOptionAsAltEnabledAccurately(crossOverPath: crossOverPath) {
+    static func isOptionAsAltEnabled() -> Bool {
+        if let accurate = isOptionAsAltEnabledAccurately() {
             return accurate
         }
         return isOptionAsAltEnabledFast()
@@ -80,8 +75,8 @@ enum OptionAsAltService {
     }
 
     // MARK: - Helpers
-    private static func isOptionAsAltEnabledAccurately(crossOverPath: String? = nil) -> Bool? {
-        guard let wineExecutable = WineRegistrySupport.wineloaderPath(from: crossOverPath) else {
+    private static func isOptionAsAltEnabledAccurately() -> Bool? {
+        guard let wineExecutable = try? WineRegistrySupport.wineBinaryPath() else {
             return nil
         }
 

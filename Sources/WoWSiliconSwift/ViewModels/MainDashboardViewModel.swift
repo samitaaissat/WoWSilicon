@@ -484,16 +484,15 @@ final class MainDashboardViewModel: ObservableObject {
 
     func installVisualCppRuntime() {
         guard canInstallDependencies else { return }
-        guard let currentVersion else { return }
+        guard currentVersion != nil else { return }
 
-        let crossOverPath = currentVersion.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines)
         isDependencyInstallInProgress = true
         visualCppRuntimeStatus = .inProgress("Installing...")
         patchFeedback = nil
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
-                try DependencyService.installVisualCppRuntime(crossOverPath: crossOverPath)
+                try DependencyService.installVisualCppRuntime()
                 DispatchQueue.main.async {
                     self?.isDependencyInstallInProgress = false
                     self?.visualCppRuntimeStatus = DependencyService.isVisualCppRuntimeInstalled() ? .installed : .missing
@@ -560,18 +559,16 @@ final class MainDashboardViewModel: ObservableObject {
 
     private func setOptionAsAlt(_ enabled: Bool) {
         guard !isOptionAsAltBusy else { return }
-        guard let currentVersion = versionManager.currentVersion else { return }
+        guard versionManager.currentVersion != nil else { return }
 
         isOptionAsAltBusy = true
         optionAsAltStatus = .inProgress(enabled ? "Enabling…" : "Disabling…")
 
-        let crossOverPath = currentVersion.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : currentVersion.crossOverPath
-
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             do {
-                try OptionAsAltService.setOptionAsAlt(enabled: enabled, crossOverPath: crossOverPath)
-                let actual = OptionAsAltService.isOptionAsAltEnabled(crossOverPath: crossOverPath)
+                try OptionAsAltService.setOptionAsAlt(enabled: enabled)
+                let actual = OptionAsAltService.isOptionAsAltEnabled()
                 DispatchQueue.main.async {
                     self.isOptionAsAltBusy = false
                     self.optionAsAltStatus = actual ? .enabled : .disabled
@@ -609,18 +606,16 @@ final class MainDashboardViewModel: ObservableObject {
 
     private func setRetinaMode(_ enabled: Bool) {
         guard !isRetinaModeBusy else { return }
-        guard let currentVersion = versionManager.currentVersion else { return }
+        guard versionManager.currentVersion != nil else { return }
 
         isRetinaModeBusy = true
         retinaModeStatus = .inProgress(enabled ? "Enabling…" : "Disabling…")
 
-        let crossOverPath = currentVersion.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : currentVersion.crossOverPath
-
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             do {
-                try RetinaModeService.setRetinaMode(enabled: enabled, crossOverPath: crossOverPath)
-                let actual = RetinaModeService.isRetinaModeEnabled(crossOverPath: crossOverPath)
+                try RetinaModeService.setRetinaMode(enabled: enabled)
+                let actual = RetinaModeService.isRetinaModeEnabled()
                 DispatchQueue.main.async {
                     self.isRetinaModeBusy = false
                     self.retinaModeStatus = actual ? .enabled : .disabled
@@ -1044,8 +1039,6 @@ final class MainDashboardViewModel: ObservableObject {
             case .commandFailed(let output),
                  .registryWriteFailed(let output):
                 detail = output
-            case .wineMissing:
-                detail = "Wine is not installed"
             }
         } else {
             detail = error.localizedDescription

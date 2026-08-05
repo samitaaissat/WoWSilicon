@@ -24,7 +24,6 @@ enum DependencyInstallStatus: Equatable {
 }
 
 enum DependencyServiceError: LocalizedError {
-    case wineMissing
     case downloadFailed(String)
     case installFailed(String)
     case verificationFailed
@@ -32,8 +31,6 @@ enum DependencyServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .wineMissing:
-            return "CrossOver wineloader not found. Please ensure you have applied the CrossOver patch."
         case .downloadFailed(let reason):
             return "Failed to download Microsoft Visual C++ Redistributable: \(reason)"
         case .installFailed(let output):
@@ -139,10 +136,8 @@ enum DependencyService {
         return hasX86Runtime && (!needsX64Runtime || hasX64Runtime) && hasVisualCppOverrides()
     }
 
-    static func installVisualCppRuntime(crossOverPath: String?) throws {
-        guard let wineExecutable = WineRegistrySupport.wineloaderPath(from: crossOverPath) else {
-            throw DependencyServiceError.wineMissing
-        }
+    static func installVisualCppRuntime() throws {
+        let wineExecutable = try WineRegistrySupport.wineBinaryPath()
 
         let prefixURL = WineRegistrySupport.winePrefixURL()
         try FileManager.default.createDirectory(at: prefixURL, withIntermediateDirectories: true)
