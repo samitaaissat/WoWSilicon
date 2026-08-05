@@ -24,7 +24,7 @@
 
 WoWSilicon is a macOS launcher for older World of Warcraft clients on Apple Silicon Macs.
 
-It is built around CrossOver, RosettaX87, DX9 translation, and runtime patching so clients from the 2006-2010 era can run more efficiently on modern macOS hardware.
+It bundles a pre-patched Wine runtime, RosettaX87, DX9 translation, and runtime patching so clients from the 2006-2010 era can run more efficiently on modern macOS hardware.
 
 <p align="center">
   <img src="docs/assets/launcher-preview.png" alt="WoWSilicon launcher preview" width="760">
@@ -40,7 +40,7 @@ It is built around CrossOver, RosettaX87, DX9 translation, and runtime patching 
 ## Features
 
 - Version profiles for separate client folders
-- CrossOver patching for the RosettaX87 launch path
+- Bundled, pre-patched Wine runtime (built from WineAndAqua/wine, wine-11.0-macos)
 - Game-folder patching for required runtime files
 - libSiliconPatch mod (reducing x87-heavy runtime paths)
 - Addon manager with Git URL installs, updates, bulk import, and bulk export
@@ -53,9 +53,10 @@ It is built around CrossOver, RosettaX87, DX9 translation, and runtime patching 
 
 - Apple Silicon Mac
 - macOS 15 or newer
-- CrossOver 26 installed and opened at least once
 - A legally acquired local World of Warcraft client folder
-- Permission to modify the selected game folder and CrossOver app bundle
+- Permission to modify the selected game folder
+
+On first launch, macOS shows a one-time prompt asking to allow WoWSilicon to attach to other processes for debugging. The bundled RosettaX87 loader needs this authorization to run the 32-bit client; approve it once and macOS will not ask again.
 
 ## Installation
 
@@ -71,7 +72,24 @@ If macOS blocks the app because the build is unsigned, remove the quarantine att
 xattr -cr /Applications/WoWSilicon.app
 ```
 
-Then open WoWSilicon, select the game folder and CrossOver app path, apply the required patches, and launch the selected client profile.
+Then open WoWSilicon, select the game folder, apply the game patch, and launch the selected client profile.
+
+## Bundled components & licenses
+
+WoWSilicon.app ships the following third-party components:
+
+- **Wine** (LGPL-2.1-or-later) — the bundled, pre-patched runtime is built from
+  [WineAndAqua/wine](https://github.com/WineAndAqua/wine) (branch `wine-11.0-macos`)
+  at the commit pinned in [`.github/workflows/runtime.yml`](.github/workflows/runtime.yml).
+  The app bundles the `runtime-v*` release selected by `RUNTIME_VERSION` in the
+  [`Makefile`](Makefile); Wine's LICENSE files ship inside
+  `WoWSilicon.app/Contents/SharedSupport/wine/`.
+- **rosettax87_jit** (MIT) — the RosettaX87 loader, by
+  [Lifeisawful](https://github.com/Lifeisawful/rosettax87_jit).
+- **winerosetta** — game-folder DLL payload, from the
+  [Gcenx mirror](https://github.com/Gcenx/winerosetta).
+- **DXVK / d9vk** (zlib) — the native `d3d9.dll` DirectX 9 translation layer.
+- **vanilla-tweaks** (MIT) — client tweaking tool used by the vanilla-tweaks patch step.
 
 ## Development
 
