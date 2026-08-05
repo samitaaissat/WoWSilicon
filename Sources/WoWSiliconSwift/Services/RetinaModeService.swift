@@ -1,14 +1,11 @@
 import Foundation
 
 enum RetinaModeServiceError: LocalizedError {
-    case wineMissing
     case commandFailed(String)
     case registryWriteFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .wineMissing:
-            return "CrossOver wineloader not found. Please ensure you have applied the CrossOver patch."
         case .commandFailed(let output):
             return output.isEmpty ? "Failed to update Wine registry." : output
         case .registryWriteFailed(let reason):
@@ -20,10 +17,8 @@ enum RetinaModeServiceError: LocalizedError {
 enum RetinaModeService {
     private static let retinaLineY = #""RetinaMode"="Y""#
 
-    static func setRetinaMode(enabled: Bool, crossOverPath: String? = nil) throws {
-        guard let wineExecutable = WineRegistrySupport.wineloaderPath(from: crossOverPath) else {
-            throw RetinaModeServiceError.wineMissing
-        }
+    static func setRetinaMode(enabled: Bool) throws {
+        let wineExecutable = try WineRegistrySupport.wineBinaryPath()
 
         let prefixURL = WineRegistrySupport.winePrefixURL()
         try FileManager.default.createDirectory(at: prefixURL, withIntermediateDirectories: true)
@@ -32,8 +27,8 @@ enum RetinaModeService {
         try setRegistryValueFast(enabled: enabled)
     }
 
-    static func isRetinaModeEnabled(crossOverPath: String? = nil) -> Bool {
-        if let accurate = isRetinaModeEnabledAccurately(crossOverPath: crossOverPath) {
+    static func isRetinaModeEnabled() -> Bool {
+        if let accurate = isRetinaModeEnabledAccurately() {
             return accurate
         }
         return isRetinaModeEnabledFast()
@@ -66,8 +61,8 @@ enum RetinaModeService {
         return lastValue == "Y"
     }
 
-    private static func isRetinaModeEnabledAccurately(crossOverPath: String? = nil) -> Bool? {
-        guard let wineExecutable = WineRegistrySupport.wineloaderPath(from: crossOverPath) else { return nil }
+    private static func isRetinaModeEnabledAccurately() -> Bool? {
+        guard let wineExecutable = try? WineRegistrySupport.wineBinaryPath() else { return nil }
 
         let prefixURL = WineRegistrySupport.winePrefixURL()
         guard let result = try? ProcessRunner.run(
