@@ -1,0 +1,15 @@
+{
+    "version": "0.1.0",
+    "id": "7bb1afdc-d209-4046-9830-22ad2f07a688",
+    "timestamp": "2026-08-05T18:41:06.324787Z",
+    "vcs": {
+        "type": "git",
+        "revision": "b1121d242ea6e2fd155f4dcdf51c25e78fa87061",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": []
+}
