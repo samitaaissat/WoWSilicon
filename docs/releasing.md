@@ -73,3 +73,31 @@ notes are embedded in the Sparkle appcast and used as the GitHub Release body.
 If the file is missing, the release falls back to generated placeholder notes.
 
 The GitHub Action builds the DMG, creates or updates the GitHub Release, generates the signed update feed, and publishes `appcast.xml` to the Pages repository.
+
+## Runtime Releases
+
+The bundled Wine runtime is released separately from the app, from
+`runtime-v<n>` tags (for example `runtime-v1`). Pushing such a tag runs
+`.github/workflows/runtime.yml`, which builds Wine from the pinned
+`WineAndAqua/wine` commit and attaches two assets to the `runtime-v<n>`
+GitHub release:
+
+- `wowsilicon-wine-<n>-osx64.tar.xz` (contains a top-level `wine/{bin,lib,share,VERSION}`)
+- `wowsilicon-wine-<n>-osx64.tar.xz.sha256`
+
+Cut a new runtime release (`runtime-v<n+1>`) only when the runtime itself
+changes: a Wine source bump (new pinned SHA in the workflow), configure-flag
+or dependency changes, or packaging fixes. App-only changes never require a
+new runtime release.
+
+The app pins the runtime it bundles in the `Makefile`:
+
+- `RUNTIME_VERSION` — the runtime release number (`1` for `runtime-v1`)
+- `RUNTIME_SHA256` — the expected checksum of the tarball (from the `.sha256` asset)
+- `RUNTIME_URL` — the GitHub release asset URL
+
+`make fetch-runtime` downloads the tarball to `.build/runtime-cache/` (skipped
+when cached with a matching checksum), verifies `RUNTIME_SHA256`, and extracts
+it; `make bundle` then copies the runtime into
+`WoWSilicon.app/Contents/SharedSupport/wine` before codesigning. To move the
+app to a new runtime, update all three pins in the same commit and rebuild.
