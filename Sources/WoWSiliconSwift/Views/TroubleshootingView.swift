@@ -3,6 +3,7 @@ import SwiftUI
 struct TroubleshootingView: View {
     @ObservedObject var viewModel: TroubleshootingViewModel
     let onClose: () -> Void
+    @State private var showRestoreConfirmation = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -10,7 +11,7 @@ struct TroubleshootingView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    crossoverSection
+                    runtimeSection
                     actionsSection
                     debugLogSection
                 }
@@ -40,17 +41,13 @@ struct TroubleshootingView: View {
         }
     }
 
-    private var crossoverSection: some View {
+    private var runtimeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("CrossOver").font(.headline)
+            Text("Wine Runtime").font(.headline)
             HStack {
-                Text("Version: \(viewModel.crossoverVersion)")
+                Text("Wine runtime: \(viewModel.runtimeVersion)")
                 Spacer()
-                if viewModel.crossoverRecommended {
-                    Text("Recommended").foregroundColor(.green)
-                } else {
-                    Text("Update recommended").foregroundColor(.orange)
-                }
+                Text("rosettax87: bundled (\(viewModel.rosettaStatus))")
             }
         }
     }
@@ -62,6 +59,24 @@ struct TroubleshootingView: View {
                 .buttonStyle(.bordered)
             Button("Delete Wine Prefixes", action: viewModel.deleteWinePrefixes)
                 .buttonStyle(.bordered)
+            VStack(alignment: .leading, spacing: 4) {
+                Button("Restore CrossOver Modifications") {
+                    showRestoreConfirmation = true
+                }
+                .buttonStyle(.bordered)
+                .confirmationDialog(
+                    "Restore CrossOver Modifications?",
+                    isPresented: $showRestoreConfirmation
+                ) {
+                    Button("Restore", role: .destructive, action: viewModel.restoreCrossOver)
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("This reverts the CrossOver patch applied by WoWSilicon 2.x: restores ntdll.so and wine from their backups and removes wineloader2.")
+                }
+                Text("Only needed if you patched CrossOver with WoWSilicon 2.x")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             Button("Delete vanilla-tweaks", action: viewModel.deleteVanillaTweaks)
                 .buttonStyle(.bordered)
             Button(role: .destructive, action: viewModel.resetApplicationSupport) {

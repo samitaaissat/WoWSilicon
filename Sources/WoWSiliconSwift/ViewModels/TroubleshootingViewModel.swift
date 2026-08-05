@@ -14,8 +14,8 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
     }
 
     @Published var status: Status = .idle
-    @Published var crossoverVersion: String = "Not found"
-    @Published var crossoverRecommended = false
+    @Published var runtimeVersion: String = "Not found"
+    @Published var rosettaStatus: String = "missing"
     @Published var debugLog: String = ""
     private var fullDebugLog: String = ""
     @Published var alert: ManagerAlert?
@@ -38,19 +38,15 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
         let context = self.context
         Task.detached { [weak self] in
             guard let self else { return }
-            
-            // Get CrossOver path from current version or use default
-            let customPath = context.currentVersion?.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let crossoverPath = customPath.isEmpty ? "/Applications/CrossOver.app" : customPath
-            
-            // Read CrossOver version from Info.plist
-            let (version, recommended) = Self.getCrossOverVersion(at: crossoverPath)
-            
+
+            let runtime = WineRuntime.shared
+            let version = runtime.runtimeVersion ?? "Not found"
+            let rosetta = runtime.rosettaLoaderURL != nil ? "ok" : "missing"
+
             // Capture current toggle states
             let hideName = await self.hideMacUserName
             let includeLog = await self.includeLatestErrorLog
-            
-            
+
             let result = TroubleshootingService.generateDebugLog(
                 context: context,
                 hideMacUserName: hideName,
@@ -58,33 +54,13 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
             )
 
             Task { @MainActor in
-                self.crossoverVersion = version
-                self.crossoverRecommended = recommended
+                self.runtimeVersion = version
+                self.rosettaStatus = rosetta
                 self.debugLog = result.preview
                 self.fullDebugLog = result.full
                 self.status = .ready
             }
         }
-    }
-
-    private nonisolated static func getCrossOverVersion(at path: String) -> (version: String, recommended: Bool) {
-        let infoPlistPath = (path as NSString).appendingPathComponent("Contents/Info.plist")
-        
-        guard FileManager.default.fileExists(atPath: path) else {
-            return ("Not found", false)
-        }
-        
-        guard let plistData = FileManager.default.contents(atPath: infoPlistPath),
-              let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-              let version = plist["CFBundleShortVersionString"] as? String else {
-            return ("Unknown", false)
-        }
-        
-        let components = version.split(separator: ".").compactMap { Int($0) }
-        let majorVersion = components.first ?? 0
-        let recommended = majorVersion == 26
-        
-        return (version, recommended)
     }
 
     func deleteWDB() {
@@ -100,6 +76,22 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
         perform(action: "Deleting Wine prefixes…") {
             let deleted = try TroubleshootingService.deleteWinePrefixes(gamePath: gamePath)
             return "Deleted:\n" + deleted.joined(separator: "\n")
+        }
+    }
+
+    func restoreCrossOver() {
+        let customPath = context.currentVersion?.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let crossOverPath = customPath.isEmpty ? "/Applications/CrossOver.app" : customPath
+        perform(action: "Restoring CrossOver…") {
+            let result = TroubleshootingService.restoreCrossOverModifications(atCrossOverPath: crossOverPath)
+            var lines: [String] = []
+            if result.restoredNtdll { lines.append("Restored ntdll.so from backup.") }
+            if result.restoredWine { lines.append("Restored wine from backup.") }
+            if result.removedWineloader2 { lines.append("Removed wineloader2.") }
+            if lines.isEmpty {
+                return "No WoWSilicon modifications found at \(crossOverPath)."
+            }
+            return lines.joined(separator: "\n")
         }
     }
 
