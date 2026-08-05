@@ -212,52 +212,17 @@ enum TroubleshootingService {
         var fullLog = baseLog
         var previewLog = baseLog
         
-        baseLog = "\n=== CrossOver Information ===\n"
-        if let version = context.currentVersion {
-            let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-                ? "/Applications/CrossOver.app" 
-                : version.crossOverPath
-            baseLog += "Path: \(crossOverPath)\n"
-            
-            let crossOverURL = URL(fileURLWithPath: crossOverPath, isDirectory: true)
-            let cxVersion = PatchService.detectCrossOverVersion(at: crossOverURL)
-            let cxVersionStr: String
-            switch cxVersion {
-            case .v25OrLower:
-                cxVersionStr = "25 or older"
-            case .v26:
-                cxVersionStr = "26"
-            case .v27OrHigher:
-                cxVersionStr = "27 or newer"
-            }
-            baseLog += "Detected Version: \(cxVersionStr)\n"
-            
-            let wineloaderPath = crossOverPath + "/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wineloader2"
-            if FileManager.default.fileExists(atPath: wineloaderPath) {
-                baseLog += "wineloader2: Found\n"
-            } else {
-                baseLog += "wineloader2: Not found\n"
-            }
-            
-            if cxVersion == .v26 {
-                let cxUnixDir = crossOverURL
-                    .appendingPathComponent("Contents", isDirectory: true)
-                    .appendingPathComponent("SharedSupport", isDirectory: true)
-                    .appendingPathComponent("CrossOver", isDirectory: true)
-                    .appendingPathComponent("lib", isDirectory: true)
-                    .appendingPathComponent("wine", isDirectory: true)
-                    .appendingPathComponent("x86_64-unix", isDirectory: true)
-                
-                let wineBackup = cxUnixDir.appendingPathComponent("wine.bak", isDirectory: false)
-                let ntdllBackup = cxUnixDir.appendingPathComponent("ntdll.so.bak", isDirectory: false)
-                let ntdllActive = cxUnixDir.appendingPathComponent("ntdll.so", isDirectory: false)
-                
-                baseLog += "wine backup: " + (FileManager.default.fileExists(atPath: wineBackup.path) ? "✓ Found\n" : "✗ Missing\n")
-                baseLog += "ntdll.so backup: " + (FileManager.default.fileExists(atPath: ntdllBackup.path) ? "✓ Found\n" : "✗ Missing\n")
-                baseLog += "active ntdll.so: " + (FileManager.default.fileExists(atPath: ntdllActive.path) ? "✓ Found\n" : "✗ Missing\n")
-            }
+        baseLog = "\n=== Bundled Runtime ===\n"
+        let runtime = WineRuntime.shared
+        baseLog += "Runtime Version: \(runtime.runtimeVersion ?? "missing")\n"
+        let winePath = runtime.wineBinaryURL.path
+        baseLog += "Wine Binary: \(winePath)\n"
+        baseLog += "  Exists: " + (FileManager.default.fileExists(atPath: winePath) ? "✓ Yes\n" : "✗ No\n")
+        baseLog += "  Executable: " + (FileManager.default.isExecutableFile(atPath: winePath) ? "✓ Yes\n" : "✗ No\n")
+        if let loader = runtime.rosettaLoaderURL {
+            baseLog += "rosettax87 Loader: \(loader.path)\n"
         } else {
-            baseLog += "CrossOver Path: Unknown (No version selected)\n"
+            baseLog += "rosettax87 Loader: missing\n"
         }
 
         baseLog += "\n=== Patch Status ===\n"
