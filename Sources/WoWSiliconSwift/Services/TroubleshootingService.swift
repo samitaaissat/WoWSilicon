@@ -23,6 +23,12 @@ struct TroubleshootingContext: Sendable {
     let isGamePatched: Bool
 }
 
+struct CrossOverRestoreResult: Equatable {
+    let restoredNtdll: Bool
+    let restoredWine: Bool
+    let removedWineloader2: Bool
+}
+
 enum TroubleshootingService {
 
     static func deleteWDBDirectories(gamePath: String?) throws -> [String] {
@@ -70,6 +76,57 @@ enum TroubleshootingService {
             throw TroubleshootingServiceError.nothingToDelete
         }
         return deleted
+    }
+
+    /// Best-effort revert of the v2.x CrossOver patch. Never throws; each
+    /// missing piece is silently skipped and reported as false in the result.
+    static func restoreCrossOverModifications(atCrossOverPath path: String) -> CrossOverRestoreResult {
+        let fm = FileManager.default
+        let shareDir = URL(fileURLWithPath: path, isDirectory: true)
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("SharedSupport", isDirectory: true)
+            .appendingPathComponent("CrossOver", isDirectory: true)
+
+        var removedWineloader2 = false
+        let wineloader2 = shareDir
+            .appendingPathComponent("CrossOver-Hosted Application", isDirectory: true)
+            .appendingPathComponent("wineloader2", isDirectory: false)
+        if fm.fileExists(atPath: wineloader2.path) {
+            if (try? fm.removeItem(at: wineloader2)) != nil {
+                removedWineloader2 = true
+            }
+        }
+
+        let unixDir = shareDir
+            .appendingPathComponent("lib", isDirectory: true)
+            .appendingPathComponent("wine", isDirectory: true)
+            .appendingPathComponent("x86_64-unix", isDirectory: true)
+
+        var restoredNtdll = false
+        let ntdllBackup = unixDir.appendingPathComponent("ntdll.so.bak", isDirectory: false)
+        let ntdllActive = unixDir.appendingPathComponent("ntdll.so", isDirectory: false)
+        if fm.fileExists(atPath: ntdllBackup.path) {
+            try? fm.removeItem(at: ntdllActive)
+            if (try? fm.moveItem(at: ntdllBackup, to: ntdllActive)) != nil {
+                restoredNtdll = true
+            }
+        }
+
+        var restoredWine = false
+        let wineBackup = unixDir.appendingPathComponent("wine.bak", isDirectory: false)
+        let wineActive = unixDir.appendingPathComponent("wine", isDirectory: false)
+        if fm.fileExists(atPath: wineBackup.path) {
+            try? fm.removeItem(at: wineActive)
+            if (try? fm.moveItem(at: wineBackup, to: wineActive)) != nil {
+                restoredWine = true
+            }
+        }
+
+        return CrossOverRestoreResult(
+            restoredNtdll: restoredNtdll,
+            restoredWine: restoredWine,
+            removedWineloader2: removedWineloader2
+        )
     }
 
     static func deleteVanillaTweaks(gamePath: String?) throws {
