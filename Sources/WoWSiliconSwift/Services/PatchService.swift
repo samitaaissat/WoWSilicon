@@ -8,9 +8,6 @@ enum PatchServiceError: LocalizedError {
     case gameClientNotDetected
     case resourceMissing(String)
     case fileOperationFailed(String)
-    case crossOverNotFound
-    case unsupportedCrossOverVersion
-    case crossOverWineloaderMissing(String)
 
     var errorDescription: String? {
         switch self {
@@ -24,53 +21,26 @@ enum PatchServiceError: LocalizedError {
             return "Bundled resource \(name) is missing from the application package."
         case .fileOperationFailed(let reason):
             return reason
-        case .crossOverNotFound:
-            return "CrossOver.app not found at /Applications/CrossOver.app"
-        case .unsupportedCrossOverVersion:
-            return "CrossOver 26 is required for this WoWSilicon version."
-        case .crossOverWineloaderMissing(let path):
-            return "CrossOver wineloader not found at \(path)"
         }
     }
 }
 
 enum PatchService {
-    enum CrossOverVersion {
-        case v25OrLower
-        case v26
-        case v27OrHigher
-    }
-
-    static func detectCrossOverVersion(at crossOverURL: URL) -> CrossOverVersion {
-        let plistURL = crossOverURL.appendingPathComponent("Contents/Info.plist")
-        if let data = try? Data(contentsOf: plistURL),
-           let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-           let versionString = plist["CFBundleShortVersionString"] as? String,
-           let majorVersion = Int(versionString.split(separator: ".").first ?? "") {
-            
-            if majorVersion < 26 {
-                return .v25OrLower
-            } else if majorVersion == 26 {
-                return .v26
-            } else {
-                return .v27OrHigher
-            }
-        }
-        
-        // Fallback: Check if the new wine binary location exists
-        let winev26Path = crossOverURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("SharedSupport", isDirectory: true)
-            .appendingPathComponent("CrossOver", isDirectory: true)
-            .appendingPathComponent("lib", isDirectory: true)
-            .appendingPathComponent("wine", isDirectory: true)
-            .appendingPathComponent("x86_64-unix", isDirectory: true)
-            .appendingPathComponent("wine", isDirectory: false)
-            
-        return FileManager.default.fileExists(atPath: winev26Path.path) ? .v26 : .v25OrLower
-    }
-
     static func applyGamePatch(for version: GameVersion) throws {
+        let gameURL = try stageGamePatchFiles(for: version)
+
+        if version.usesRosettaPatching && version.supportsDLLLoading {
+            try patchDivxDecoder(gameURL: gameURL)
+        }
+
+        ensureGxResolution(in: gameURL)
+    }
+
+    /// Copies all patch payload files into the game folder and deletes the
+    /// obsolete v2 `<game>/rosettax87/` directory (rosettax87 ships inside the
+    /// app bundle since v3). Split from `applyGamePatch` so tests can exercise
+    /// the file staging without invoking Wine (the DivxDecoder rundll32 step).
+    static func stageGamePatchFiles(for version: GameVersion) throws -> URL {
         guard !version.gamePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw PatchServiceError.gamePathMissing
         }
@@ -109,28 +79,16 @@ enum PatchService {
             try copyItem(from: vanillaTweaksURL, to: destination)
         }
 
-        let rosettaURL = gameURL.appendingPathComponent("rosettax87", isDirectory: true)
-        if FileManager.default.fileExists(atPath: rosettaURL.path) {
-            try FileManager.default.removeItem(at: rosettaURL)
-        }
-        try FileManager.default.createDirectory(at: rosettaURL, withIntermediateDirectories: true)
-        try copyResource(named: "rosettax87", extension: nil, subdirectory: "Patching/rosettax87", to: rosettaURL.appendingPathComponent("rosettax87"), makeExecutable: true)
-        try copyResource(named: "libRuntimeRosettax87", extension: nil, subdirectory: "Patching/rosettax87", to: rosettaURL.appendingPathComponent("libRuntimeRosettax87"), makeExecutable: true)
+        // v3: rosettax87 lives inside the app bundle; delete the obsolete v2 copy.
+        try removeIfExists(gameURL.appendingPathComponent("rosettax87", isDirectory: true))
 
         try updateDllsTxt(in: gameURL, enableLibSiliconPatch: version.settings.enableLibSiliconPatch && version.libSiliconPatchSubdirectory != nil)
 
-        if version.usesRosettaPatching && version.supportsDLLLoading {
-            try patchDivxDecoder(version: version, gameURL: gameURL)
-        }
-
-        ensureGxResolution(in: gameURL)
+        return gameURL
     }
 
-    private static func patchDivxDecoder(version: GameVersion, gameURL: URL) throws {
-        let wineloaderPath = resolveWineloaderPath(for: version)
-        guard FileManager.default.fileExists(atPath: wineloaderPath) else {
-            throw PatchServiceError.crossOverWineloaderMissing(wineloaderPath)
-        }
+    private static func patchDivxDecoder(gameURL: URL) throws {
+        let wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
 
         var env = ProcessInfo.processInfo.environment
         env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree=d;mshtml=d"
@@ -147,7 +105,7 @@ enum PatchService {
             }
 
             let result = try ProcessRunner.run(
-                executablePath: wineloaderPath,
+                executablePath: wineBinaryURL.path,
                 arguments: ["rundll32", "libDllLdr.dll,\(patch.entry)", gameURL.path],
                 environment: env,
                 currentDirectory: gameURL,
@@ -174,13 +132,6 @@ enum PatchService {
         }
     }
 
-    private static func resolveWineloaderPath(for version: GameVersion) -> String {
-        let crossOverPath = version.crossOverPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "/Applications/CrossOver.app"
-            : version.crossOverPath
-        return crossOverPath + "/Contents/SharedSupport/CrossOver/CrossOver-Hosted Application/wineloader2"
-    }
-
     static func isSupportedGameClient(at gameURL: URL) -> Bool {
         FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("DivxDecoder.dll").path)
             || FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("DivxDecoder.dll.bak").path)
@@ -203,122 +154,13 @@ enum PatchService {
         try removeIfExists(gameURL.appendingPathComponent("Wow_patched.exe"))
         try removeIfExists(gameURL.appendingPathComponent("d3d9.dll"))
         try removeIfExists(gameURL.appendingPathComponent("vanilla-tweaks.exe"))
+        // Obsolete v2 payload — rosettax87 ships inside the app bundle since v3.
         try removeIfExists(gameURL.appendingPathComponent("rosettax87"))
         try revertDivxDecoder(gameURL: gameURL)
 
         try removeDllEntries(in: gameURL)
 
     }
-
-    static func applyCrossOverPatch(crossOverPath: String? = nil) throws {
-        let resolvedPath = crossOverPath ?? "/Applications/CrossOver.app"
-        let crossOverURL = URL(fileURLWithPath: resolvedPath, isDirectory: true)
-        guard FileManager.default.fileExists(atPath: crossOverURL.path) else {
-            throw PatchServiceError.crossOverNotFound
-        }
-
-        let crossOverVersion = detectCrossOverVersion(at: crossOverURL)
-        guard crossOverVersion == .v26 else {
-            throw PatchServiceError.unsupportedCrossOverVersion
-        }
-
-        let wineloaderBasePath = crossOverURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("SharedSupport", isDirectory: true)
-            .appendingPathComponent("CrossOver", isDirectory: true)
-            .appendingPathComponent("CrossOver-Hosted Application", isDirectory: true)
-
-        let wineloaderOrig = wineloaderBasePath.appendingPathComponent("wineloader", isDirectory: false)
-        guard FileManager.default.fileExists(atPath: wineloaderOrig.path) else {
-            throw PatchServiceError.crossOverWineloaderMissing(wineloaderOrig.path)
-        }
-
-        let wineloaderCopy = wineloaderBasePath.appendingPathComponent("wineloader2", isDirectory: false)
-
-        try copyItem(from: wineloaderOrig, to: wineloaderCopy)
-
-        try removeSignature(at: wineloaderCopy)
-
-        try FileManager.default.setAttributes([.posixPermissions: NSNumber(value: Int(0o755))], ofItemAtPath: wineloaderCopy.path)
-
-        if crossOverVersion == .v26 {
-            let cxUnixDir = crossOverURL
-                .appendingPathComponent("Contents", isDirectory: true)
-                .appendingPathComponent("SharedSupport", isDirectory: true)
-                .appendingPathComponent("CrossOver", isDirectory: true)
-                .appendingPathComponent("lib", isDirectory: true)
-                .appendingPathComponent("wine", isDirectory: true)
-                .appendingPathComponent("x86_64-unix", isDirectory: true)
-
-            let wineBinary = cxUnixDir.appendingPathComponent("wine", isDirectory: false)
-            let wineBackup = cxUnixDir.appendingPathComponent("wine.bak", isDirectory: false)
-            
-            if FileManager.default.fileExists(atPath: wineBinary.path) && isSigned(at: wineBinary) {
-                try copyItem(from: wineBinary, to: wineBackup)
-            }
-            if FileManager.default.fileExists(atPath: wineBinary.path) {
-                try removeSignature(at: wineBinary)
-            }
-
-            let ntdllBinary = cxUnixDir.appendingPathComponent("ntdll.so", isDirectory: false)
-            let ntdllBackup = cxUnixDir.appendingPathComponent("ntdll.so.bak", isDirectory: false)
-
-            guard let bundledNtdllURL = resourceURL(named: "ntdll", extension: "so", subdirectory: "Patching/winerosetta") else {
-                throw PatchServiceError.resourceMissing("ntdll.so")
-            }
-
-            let isPatched = fileChecksum(at: ntdllBinary) == fileChecksum(at: bundledNtdllURL)
-            if !isPatched {
-                if FileManager.default.fileExists(atPath: ntdllBinary.path) && isSignedByCodeWeavers(at: ntdllBinary) {
-                    try copyItem(from: ntdllBinary, to: ntdllBackup)
-                }
-                try copyResource(named: "ntdll", extension: "so", subdirectory: "Patching/winerosetta", to: ntdllBinary)
-            }
-        }
-    }
-
-    static func removeCrossOverPatch(crossOverPath: String? = nil) throws {
-        let resolvedPath = crossOverPath ?? "/Applications/CrossOver.app"
-        let crossOverURL = URL(fileURLWithPath: resolvedPath, isDirectory: true)
-        
-        let crossOverVersion = FileManager.default.fileExists(atPath: crossOverURL.path) ? detectCrossOverVersion(at: crossOverURL) : .v25OrLower
-
-        let wineloader2URL = crossOverURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("SharedSupport", isDirectory: true)
-            .appendingPathComponent("CrossOver", isDirectory: true)
-            .appendingPathComponent("CrossOver-Hosted Application", isDirectory: true)
-            .appendingPathComponent("wineloader2", isDirectory: false)
-
-        try removeIfExists(wineloader2URL)
-
-        if crossOverVersion == .v26 {
-            let cxUnixDir = crossOverURL
-                .appendingPathComponent("Contents", isDirectory: true)
-                .appendingPathComponent("SharedSupport", isDirectory: true)
-                .appendingPathComponent("CrossOver", isDirectory: true)
-                .appendingPathComponent("lib", isDirectory: true)
-                .appendingPathComponent("wine", isDirectory: true)
-                .appendingPathComponent("x86_64-unix", isDirectory: true)
-
-            let wineBinary = cxUnixDir.appendingPathComponent("wine", isDirectory: false)
-            let wineBackup = cxUnixDir.appendingPathComponent("wine.bak", isDirectory: false)
-            
-            if FileManager.default.fileExists(atPath: wineBackup.path) {
-                try copyItem(from: wineBackup, to: wineBinary)
-                try removeIfExists(wineBackup)
-            }
-
-            let ntdllBinary = cxUnixDir.appendingPathComponent("ntdll.so", isDirectory: false)
-            let ntdllBackup = cxUnixDir.appendingPathComponent("ntdll.so.bak", isDirectory: false)
-
-            if FileManager.default.fileExists(atPath: ntdllBackup.path) {
-                try copyItem(from: ntdllBackup, to: ntdllBinary)
-                try removeIfExists(ntdllBackup)
-            }
-        }
-    }
-
 
     // MARK: - Helpers
 
@@ -367,55 +209,6 @@ enum PatchService {
                 throw PatchServiceError.fileOperationFailed("Failed to remove \(url.path): \(error.localizedDescription)")
             }
         }
-    }
-
-    private static func removeSignature(at url: URL) throws {
-        do {
-            let result = try ProcessRunner.run(
-                executablePath: "/usr/bin/codesign",
-                arguments: ["--remove-signature", url.path],
-                timeout: 30
-            )
-            if result.exitCode != 0 {
-                try? FileManager.default.removeItem(at: url)
-                let output = result.combinedOutput
-                if output.contains("EPERM") || output.contains("Operation not permitted") {
-                    throw PatchServiceError.fileOperationFailed(
-                        "Insufficient permissions to modify \(url.path). Grant the app access in System Settings > Privacy & Security > App Management."
-                    )
-                }
-                throw PatchServiceError.fileOperationFailed(output.isEmpty ? "codesign --remove-signature failed." : output)
-            }
-        } catch let error as PatchServiceError {
-            throw error
-        } catch {
-            try? FileManager.default.removeItem(at: url)
-            throw PatchServiceError.fileOperationFailed("codesign --remove-signature failed: \(error.localizedDescription)")
-        }
-    }
-
-    static func isSigned(at url: URL) -> Bool {
-        guard let result = try? ProcessRunner.run(
-            executablePath: "/usr/bin/codesign",
-            arguments: ["-d", url.path],
-            timeout: 10
-        ) else {
-            return false
-        }
-        return result.exitCode == 0
-    }
-
-    static func isSignedByCodeWeavers(at url: URL) -> Bool {
-        guard let result = try? ProcessRunner.run(
-            executablePath: "/usr/bin/codesign",
-            arguments: ["-dvv", url.path],
-            timeout: 10
-        ) else {
-            return false
-        }
-        guard result.exitCode == 0 else { return false }
-        // codesign -dvv writes signing info to stderr
-        return result.stderr.contains("CodeWeavers")
     }
 
     static func fileChecksum(at url: URL) -> String? {
