@@ -784,9 +784,9 @@ final class MainDashboardViewModel: ObservableObject {
         Task.detached { [weak self] in
             do {
                 try PatchService.applyGamePatch(for: versionSnapshot)
-                await self?.handlePatchCompletion(successTitle: "Game Patch", message: "Game patch applied successfully.", isGame: true)
+                await self?.handlePatchCompletion(successTitle: "Game Patch", message: "Game patch applied successfully.")
             } catch {
-                await self?.handlePatchError(error, title: "Game Patch Failed", isGame: true)
+                await self?.handlePatchError(error, title: "Game Patch Failed")
             }
         }
     }
@@ -803,9 +803,9 @@ final class MainDashboardViewModel: ObservableObject {
         Task.detached { [weak self] in
             do {
                 try PatchService.removeGamePatch(for: versionSnapshot)
-                await self?.handlePatchCompletion(successTitle: "Game Unpatch", message: "Game unpatched successfully.", isGame: true)
+                await self?.handlePatchCompletion(successTitle: "Game Unpatch", message: "Game unpatched successfully.")
             } catch {
-                await self?.handlePatchError(error, title: "Game Unpatch Failed", isGame: true)
+                await self?.handlePatchError(error, title: "Game Unpatch Failed")
             }
         }
     }
@@ -814,7 +814,7 @@ final class MainDashboardViewModel: ObservableObject {
         patchFeedback = nil
     }
 
-    private func handlePatchCompletion(successTitle: String, message: String, isGame: Bool) async {
+    private func handlePatchCompletion(successTitle: String, message: String) async {
         await MainActor.run {
             isGameOperationInProgress = false
             isUnpatchingOperation = false
@@ -823,7 +823,7 @@ final class MainDashboardViewModel: ObservableObject {
         }
     }
 
-    private func handlePatchError(_ error: Error, title: String, isGame: Bool) async {
+    private func handlePatchError(_ error: Error, title: String) async {
         await MainActor.run {
             isGameOperationInProgress = false
             isUnpatchingOperation = false
