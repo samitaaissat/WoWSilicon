@@ -58,7 +58,13 @@ enum TroubleshootingService {
     }
 
     /// Primary reset: deletes ONLY the app's dedicated prefix.
-    static func deleteDedicatedPrefix(prefixURL: URL = PortableStorage.shared.prefixURL) throws -> [String] {
+    static func deleteDedicatedPrefix(
+        prefixURL: URL = PortableStorage.shared.prefixURL,
+        isPrefixBusy: () -> Bool = PortableStorage.isBundledWineserverRunning
+    ) throws -> [String] {
+        guard !isPrefixBusy() else {
+            throw TroubleshootingServiceError.operationFailed("Wine is still running. Quit the game (or use Force Quit) and try again.")
+        }
         let fm = FileManager.default
         guard fm.fileExists(atPath: prefixURL.path) else {
             throw TroubleshootingServiceError.nothingToDelete
@@ -156,7 +162,13 @@ enum TroubleshootingService {
 
     /// Deletes the active storage root (Data folder including the prefix) and,
     /// when running portable, also the Application Support fallback directory.
-    static func resetStorage(storage: PortableStorage = .shared) throws -> [String] {
+    static func resetStorage(
+        storage: PortableStorage = .shared,
+        isPrefixBusy: () -> Bool = PortableStorage.isBundledWineserverRunning
+    ) throws -> [String] {
+        guard !isPrefixBusy() else {
+            throw TroubleshootingServiceError.operationFailed("Wine is still running. Quit the game (or use Force Quit) and try again.")
+        }
         let fm = FileManager.default
         var targets = [storage.dataRootURL]
         if storage.isPortable {

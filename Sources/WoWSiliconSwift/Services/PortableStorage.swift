@@ -141,7 +141,11 @@ final class PortableStorage: @unchecked Sendable {
             let destination = configDirectory.appendingPathComponent(name)
             guard fileManager.fileExists(atPath: source.path),
                   !fileManager.fileExists(atPath: destination.path) else { continue }
-            try? fileManager.copyItem(at: source, to: destination)
+            do {
+                try fileManager.copyItem(at: source, to: destination)
+            } catch {
+                debugPrint("PortableStorage: first-run import failed to copy \(name): \(error)")
+            }
         }
     }
 
@@ -155,6 +159,12 @@ final class PortableStorage: @unchecked Sendable {
     /// move is retried on the next launch.
     func adoptFallbackPrefixIfNeeded(isPrefixBusy: () -> Bool = PortableStorage.isBundledWineserverRunning) {
         guard isPortable else { return }
+        let parentDir = prefixURL.deletingLastPathComponent()
+        // A previous adoption may have crashed (force-quit, power loss) mid-copy
+        // and left a staging dir behind; clear it before anything else so it
+        // never masquerades as, or blocks, a fresh attempt.
+        removeLeftoverAdoptionStagingDirectories(in: parentDir)
+
         let source = legacySupportDirectory.appendingPathComponent("prefix", isDirectory: true)
         guard fileManager.fileExists(atPath: source.path),
               !fileManager.fileExists(atPath: prefixURL.path) else { return }
@@ -163,16 +173,23 @@ final class PortableStorage: @unchecked Sendable {
         do {
             try fileManager.moveItem(at: source, to: prefixURL)
         } catch {
-            // Cross-volume move: copy, verify the copy landed, then delete.
+            // Cross-volume move: copy to a sibling STAGING dir first, verify the
+            // copy landed intact, then atomically rename (same-volume move) it
+            // into place. Copying straight to `prefixURL` would let an
+            // interrupted copy leave a partial destination behind — that
+            // permanently blocks future adoption (the destination-exists guard
+            // above) and can pass isPrefixReady() with an incomplete drive_c.
+            let staging = parentDir.appendingPathComponent("prefix.adopting-\(UUID().uuidString)", isDirectory: true)
             do {
-                try fileManager.copyItem(at: source, to: prefixURL)
-                guard fileManager.fileExists(atPath: prefixURL.appendingPathComponent("user.reg").path) else {
-                    try? fileManager.removeItem(at: prefixURL)
+                try fileManager.copyItem(at: source, to: staging)
+                guard fileManager.fileExists(atPath: staging.appendingPathComponent("user.reg").path) else {
+                    try? fileManager.removeItem(at: staging)
                     return
                 }
+                try fileManager.moveItem(at: staging, to: prefixURL)
                 try? fileManager.removeItem(at: source)
             } catch {
-                try? fileManager.removeItem(at: prefixURL)
+                try? fileManager.removeItem(at: staging)
                 return
             }
         }
@@ -182,6 +199,15 @@ final class PortableStorage: @unchecked Sendable {
         backupValues.isExcludedFromBackup = true
         var adopted = prefixURL
         try? adopted.setResourceValues(backupValues)
+    }
+
+    /// Removes `prefix.adopting-*` staging directories left behind by an
+    /// adoption attempt that never completed (crash, force-quit mid-copy).
+    private func removeLeftoverAdoptionStagingDirectories(in parentDir: URL) {
+        guard let entries = try? fileManager.contentsOfDirectory(atPath: parentDir.path) else { return }
+        for name in entries where name.hasPrefix("prefix.adopting-") {
+            try? fileManager.removeItem(at: parentDir.appendingPathComponent(name, isDirectory: true))
+        }
     }
 
     /// wine's own prefixes use a relative "c:" -> "../drive_c" symlink, which

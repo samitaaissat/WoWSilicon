@@ -61,6 +61,10 @@ final class MainDashboardViewModel: ObservableObject {
     private var hasActiveOptionsSession = false
     private var patchStatusRefreshID = 0
     private var didRecordLaunchTelemetry = false
+    /// Completions queued by callers that arrived while a bootstrap was
+    /// already in flight (see `ensurePrefixReady(then:)`). Drained on the
+    /// in-flight bootstrap's own completion; dropped on failure.
+    private var pendingBootstrapCompletions: [@MainActor @Sendable () -> Void] = []
     static let allowedCursorSizeMultipliers = [1, 2, 4]
 
     private static func normalizedCursorSizeMultiplier(_ value: Int) -> Int {
@@ -167,6 +171,10 @@ final class MainDashboardViewModel: ObservableObject {
 
     func installLauncher() {
         guard let version = versionManager.currentVersion else { return }
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.installLauncher() }
+            return
+        }
         let panel = NSOpenPanel()
         panel.title = "Select Launcher Installer"
         panel.prompt = "Select"
@@ -213,6 +221,10 @@ final class MainDashboardViewModel: ObservableObject {
 
     func launchThirdPartyLauncher() {
         guard let version = versionManager.currentVersion, version.hasLauncher else { return }
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.launchThirdPartyLauncher() }
+            return
+        }
         patchFeedback = nil
         isLauncherLoading = true
         launchService.launchThirdPartyLauncher(version: version) { [weak self] result in
@@ -246,13 +258,19 @@ final class MainDashboardViewModel: ObservableObject {
             completion?()
             return
         }
-        guard !isPrefixBootstrapping else { return }
+        guard !isPrefixBootstrapping else {
+            // A bootstrap is already running. Queue the completion instead of
+            // dropping it, and restore the in-progress banner in case the
+            // caller (e.g. launchGame()) just cleared patchFeedback — the
+            // user must never see a blank banner while setup is ongoing.
+            if let completion {
+                pendingBootstrapCompletions.append(completion)
+            }
+            patchFeedback = Self.bootstrappingFeedback
+            return
+        }
         isPrefixBootstrapping = true
-        patchFeedback = PatchFeedback(
-            title: "Wine Environment",
-            message: "Setting up the Wine environment — the first run can take a few minutes.",
-            isError: false
-        )
+        patchFeedback = Self.bootstrappingFeedback
         let remapOptionAsAlt = versionManager.currentVersion?.settings.remapOptionAsAlt ?? false
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -272,7 +290,10 @@ final class MainDashboardViewModel: ObservableObject {
                     self.refreshOptionAsAltStatus()
                     self.refreshRetinaModeStatus()
                     self.refreshVisualCppRuntimeStatus()
+                    let queued = self.pendingBootstrapCompletions
+                    self.pendingBootstrapCompletions.removeAll()
                     completion?()
+                    queued.forEach { $0() }
                 }
             } catch {
                 DispatchQueue.main.async { [weak self] in
@@ -283,10 +304,20 @@ final class MainDashboardViewModel: ObservableObject {
                         message: error.localizedDescription,
                         isError: true
                     )
+                    // The bootstrap failed — the queued callers' preconditions
+                    // were never met, so drop them rather than re-invoking
+                    // work against a still-broken prefix.
+                    self.pendingBootstrapCompletions.removeAll()
                 }
             }
         }
     }
+
+    private static let bootstrappingFeedback = PatchFeedback(
+        title: "Wine Environment",
+        message: "Setting up the Wine environment — the first run can take a few minutes.",
+        isError: false
+    )
 
     func selectGamePath() {
         let panel = NSOpenPanel()
@@ -544,6 +575,10 @@ final class MainDashboardViewModel: ObservableObject {
 
     func installVisualCppRuntime() {
         guard canInstallDependencies else { return }
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.installVisualCppRuntime() }
+            return
+        }
 
         isDependencyInstallInProgress = true
         visualCppRuntimeStatus = .inProgress("Installing...")
@@ -849,6 +884,10 @@ final class MainDashboardViewModel: ObservableObject {
 
     func patchGame() {
         guard !isGameOperationInProgress, let version = versionManager.currentVersion else {
+            return
+        }
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.patchGame() }
             return
         }
 
