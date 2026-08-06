@@ -156,6 +156,19 @@ while IFS= read -r -d '' candidate; do
   fi
 done < <(find "$STAGING_DIR/wine" -type f -print0)
 
+# --- Normalize mtimes ---------------------------------------------------------
+# wine stamps every prefix with wine.inf's mtime (.update-timestamp) and re-runs
+# the full prefix update on ANY mismatch. The mtime must therefore be
+# (a) identical across rebuilds of the same runtime version — otherwise every
+#     rebuilt tarball forces a spurious multi-minute prefix refresh — and
+# (b) different across runtime versions, so a real runtime bump still triggers
+#     exactly one legitimate refresh.
+# Derivation: fixed 2026-01-01T00:00:00Z base + RUNTIME_BUILD_NUMBER seconds.
+# Must run AFTER codesigning (signing rewrites the Mach-O files).
+RUNTIME_EPOCH=$((1767225600 + RUNTIME_BUILD_NUMBER))
+RUNTIME_TOUCH_STAMP="$(TZ=UTC date -r "$RUNTIME_EPOCH" +%Y%m%d%H%M.%S)"
+find "$STAGING_DIR/wine" -exec env TZ=UTC touch -h -t "$RUNTIME_TOUCH_STAMP" {} +
+
 # --- Package -----------------------------------------------------------------
 # Package BEFORE the smoke test so the tarball exists (and can be uploaded as
 # a workflow artifact) even when the smoke test fails — the Intel CI runner is
