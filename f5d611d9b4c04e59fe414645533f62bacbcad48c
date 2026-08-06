@@ -1,0 +1,96 @@
+{
+    "version": "0.1.0",
+    "id": "ca0ca1ad-fe50-4fcd-82e3-69128ba1075b",
+    "timestamp": "2026-08-06T20:24:11.867054Z",
+    "vcs": {
+        "type": "git",
+        "revision": "f5d611d9b4c04e59fe414645533f62bacbcad48c",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Stores/VersionStore.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:c01e8428f8d186f9adb940f7f223c043a4bada9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 11,
+                            "end_line": 11
+                        },
+                        {
+                            "start_line": 15,
+                            "end_line": 15
+                        },
+                        {
+                            "start_line": 17,
+                            "end_line": 17
+                        },
+                        {
+                            "start_line": 24,
+                            "end_line": 24
+                        },
+                        {
+                            "start_line": 89,
+                            "end_line": 93
+                        },
+                        {
+                            "start_line": 96,
+                            "end_line": 96
+                        },
+                        {
+                            "start_line": 99,
+                            "end_line": 100
+                        },
+                        {
+                            "start_line": 104,
+                            "end_line": 104
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/VersionStoreTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:c01e8428f8d186f9adb940f7f223c043a4bada9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 17,
+                            "end_line": 17
+                        },
+                        {
+                            "start_line": 49,
+                            "end_line": 49
+                        },
+                        {
+                            "start_line": 52,
+                            "end_line": 52
+                        },
+                        {
+                            "start_line": 62,
+                            "end_line": 62
+                        },
+                        {
+                            "start_line": 81,
+                            "end_line": 81
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
