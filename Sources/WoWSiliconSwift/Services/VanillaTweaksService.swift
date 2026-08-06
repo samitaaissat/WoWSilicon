@@ -56,7 +56,10 @@ enum VanillaTweaksService {
         let result = try ProcessRunner.run(
             executablePath: wineBinaryPath,
             arguments: try makeArguments(for: version.settings),
-            environment: makeWineEnvironment(wineBinaryPath: wineBinaryPath),
+            environment: WineRegistrySupport.makeWineEnvironment(
+                prefixURL: WineRegistrySupport.winePrefixURL(),
+                wineExecutable: wineBinaryPath
+            ),
             currentDirectory: gameURL,
             timeout: 300
         )
@@ -111,22 +114,5 @@ enum VanillaTweaksService {
             }
         }
         return arguments
-    }
-    
-    private static func makeWineEnvironment(wineBinaryPath: String) -> [String: String] {
-        var environment = ProcessInfo.processInfo.environment
-
-        let wineDirectory = (wineBinaryPath as NSString).deletingLastPathComponent
-        if var path = environment["PATH"] {
-            let components = path.split(separator: ":").map(String.init)
-            if !components.contains(wineDirectory) {
-                path = "\(wineDirectory):\(path)"
-                environment["PATH"] = path
-            }
-        } else {
-            environment["PATH"] = wineDirectory
-        }
-        
-        return environment
     }
 }

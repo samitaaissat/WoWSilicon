@@ -93,6 +93,7 @@ enum PatchService {
         var env = ProcessInfo.processInfo.environment
         env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree=d;mshtml=d"
         env["WINEDEBUG"] = "-all"
+        env["WINEPREFIX"] = WineRegistrySupport.winePrefixURL().path
 
         let patches: [(entry: String, file: String)] = [
             ("PatchDivxDecoder", "DivxDecoder.dll"),
