@@ -66,7 +66,7 @@ jobs:
           tarball="$dist/wowsilicon-wine-$BUILD_NUMBER-osx64.tar.xz"
           checksum="$tarball.sha256"
           wine_commit="$(grep -m1 '^WINE_COMMIT=' tools/runtime/build-wine-runtime.sh | cut -d'"' -f2)"
-          notes="Bundled Wine runtime build $BUILD_NUMBER, built from WineAndAqua/wine@$wine_commit (branch wine-11.0-macos). Layout: wine/{bin,lib,share,VERSION}."
+          notes="Bundled Wine runtime build $BUILD_NUMBER, built from WineAndAqua/wine@$wine_commit (branch wine-11.14-macos). Layout: wine/{bin,lib,share,VERSION}."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$tarball" "$checksum" --clobber
             gh release edit "$TAG" --title "Wine runtime $BUILD_NUMBER" --notes "$notes"
