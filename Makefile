@@ -113,10 +113,18 @@ dmg: bundle
 	@rm -rf "$(DMG_STAGING_DIR)"
 	@mkdir -p "$(DMG_STAGING_DIR)"
 	@mkdir -p "$(ARCHIVE_DIR)"
-	@cp -R "$(APP_BUNDLE)" "$(DMG_STAGING_DIR)/"
+	@# ditto (not cp -R): the shipped DMG must carry the runtime's normalized
+	@# mtimes (see the bundle target) or wine re-runs a full prefix update.
+	@ditto "$(APP_BUNDLE)" "$(DMG_STAGING_DIR)/$(APP_NAME).app"
 	@ln -s /Applications "$(DMG_STAGING_DIR)/Applications"
 	@rm -f "$(DMG_PATH)"
-	@hdiutil create -volname "$(APP_NAME)" -fs HFS+ -format UDZO -srcfolder "$(DMG_STAGING_DIR)" "$(DMG_PATH)" >/dev/null
+	@# hdiutil's legacy -srcfolder path is deprecated and fails with
+	@# "Resource busy" on macOS 27; prefer the modern replacement when present.
+	@if diskutil image create from --help >/dev/null 2>&1; then \
+		diskutil image create from --format UDZO --volumeName "$(APP_NAME)" "$(DMG_STAGING_DIR)" "$(DMG_PATH)" >/dev/null; \
+	else \
+		hdiutil create -volname "$(APP_NAME)" -fs HFS+ -format UDZO -srcfolder "$(DMG_STAGING_DIR)" "$(DMG_PATH)" >/dev/null; \
+	fi
 	@echo "DMG created at $(DMG_PATH)"
 
 appcast: dmg
