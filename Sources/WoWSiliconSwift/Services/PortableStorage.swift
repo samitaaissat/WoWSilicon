@@ -121,6 +121,30 @@ final class PortableStorage: @unchecked Sendable {
         }
     }
 
+    // MARK: - First-run import
+
+    /// Byte-copies existing config from ~/Library/Application Support/WoWSilicon
+    /// into a fresh portable Data folder. Latch: once versions.json exists in
+    /// the Data root, the Data root is authoritative forever and the import
+    /// never runs again. Copy — never move — so Application Support stays
+    /// intact as a rollback net. Never decode/re-encode: re-encoding would
+    /// drop unknown legacy keys.
+    func performFirstRunImportIfNeeded() {
+        guard isPortable else { return }
+        let latchURL = configDirectory.appendingPathComponent("versions.json")
+        guard !fileManager.fileExists(atPath: latchURL.path) else { return }
+
+        // versions.json is copied LAST: it is the latch, and an interrupted
+        // import must not latch before the other files made it across.
+        for name in ["version_manager.json", "prefs.json", "versions.json"] {
+            let source = legacySupportDirectory.appendingPathComponent(name)
+            let destination = configDirectory.appendingPathComponent(name)
+            guard fileManager.fileExists(atPath: source.path),
+                  !fileManager.fileExists(atPath: destination.path) else { continue }
+            try? fileManager.copyItem(at: source, to: destination)
+        }
+    }
+
     // MARK: - Resolution
 
     private static func resolve(bundleURL: URL, fallbackRoot: URL,
