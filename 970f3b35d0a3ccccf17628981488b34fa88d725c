@@ -1,0 +1,70 @@
+{
+    "version": "0.1.0",
+    "id": "e2cf6dd5-cf32-42c7-9a7f-184dbb09fdd1",
+    "timestamp": "2026-08-06T22:40:30.491871Z",
+    "vcs": {
+        "type": "git",
+        "revision": "970f3b35d0a3ccccf17628981488b34fa88d725c",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:d6916f4c6f42717447d36d3ef9ffa186ea95be70",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 82,
+                            "end_line": 86
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/releases/3.0.0.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:d6916f4c6f42717447d36d3ef9ffa186ea95be70",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 11,
+                            "end_line": 18
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/runtime/build-wine-runtime.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:d6916f4c6f42717447d36d3ef9ffa186ea95be70",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 159,
+                            "end_line": 170
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
