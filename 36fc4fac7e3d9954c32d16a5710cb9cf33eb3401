@@ -1,0 +1,102 @@
+{
+    "version": "0.1.0",
+    "id": "e726029f-dc51-4689-b340-625594ef28a9",
+    "timestamp": "2026-08-06T20:27:35.059683Z",
+    "vcs": {
+        "type": "git",
+        "revision": "36fc4fac7e3d9954c32d16a5710cb9cf33eb3401",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/MigrationService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:18c9105508c30a60663269c85e1e1b1c39624591",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 7,
+                            "end_line": 8
+                        },
+                        {
+                            "start_line": 13,
+                            "end_line": 14
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PortableStorage.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:18c9105508c30a60663269c85e1e1b1c39624591",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 124,
+                            "end_line": 124
+                        },
+                        {
+                            "start_line": 126,
+                            "end_line": 135
+                        },
+                        {
+                            "start_line": 137,
+                            "end_line": 144
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/StorageMigrationTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:18c9105508c30a60663269c85e1e1b1c39624591",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 20
+                        },
+                        {
+                            "start_line": 23,
+                            "end_line": 43
+                        },
+                        {
+                            "start_line": 45,
+                            "end_line": 68
+                        },
+                        {
+                            "start_line": 70,
+                            "end_line": 112
+                        },
+                        {
+                            "start_line": 114,
+                            "end_line": 135
+                        },
+                        {
+                            "start_line": 137,
+                            "end_line": 140
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
