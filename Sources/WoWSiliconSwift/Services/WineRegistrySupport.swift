@@ -6,12 +6,15 @@ enum WineRegistrySupport {
     static let legacyMacDriverSection = "[Software\\\\Wine\\\\Mac Driver]"
     static let timestampLine = "#time=1dbd859c084de18"
 
-    static func winePrefixURL() -> URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".wine", isDirectory: true)
+    /// The app's dedicated Wine prefix. Every registry/dependency operation and
+    /// every direct user.reg read/write routes through this one function — it is
+    /// the single choke point that keeps the app off the shared global ~/.wine.
+    static func winePrefixURL(storage: PortableStorage = .shared) -> URL {
+        storage.prefixURL
     }
 
-    static func userRegURL() -> URL {
-        winePrefixURL().appendingPathComponent("user.reg")
+    static func userRegURL(storage: PortableStorage = .shared) -> URL {
+        winePrefixURL(storage: storage).appendingPathComponent("user.reg")
     }
 
     static func isMacDriverSection(_ content: String) -> Bool {
