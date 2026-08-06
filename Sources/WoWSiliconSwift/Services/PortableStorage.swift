@@ -145,6 +145,69 @@ final class PortableStorage: @unchecked Sendable {
         }
     }
 
+    // MARK: - Fallback-prefix adoption
+
+    /// When a launch resolves beside the app but the Application Support
+    /// fallback still holds an app-created prefix (user ran from a read-only
+    /// location first), MOVE it into the Data folder instead of paying a full
+    /// wineboot init + VC++ reinstall for a fresh one. Skipped while any
+    /// bundled wineserver is alive — moving a live prefix corrupts it; the
+    /// move is retried on the next launch.
+    func adoptFallbackPrefixIfNeeded(isPrefixBusy: () -> Bool = PortableStorage.isBundledWineserverRunning) {
+        guard isPortable else { return }
+        let source = legacySupportDirectory.appendingPathComponent("prefix", isDirectory: true)
+        guard fileManager.fileExists(atPath: source.path),
+              !fileManager.fileExists(atPath: prefixURL.path) else { return }
+        guard !isPrefixBusy() else { return }
+
+        do {
+            try fileManager.moveItem(at: source, to: prefixURL)
+        } catch {
+            // Cross-volume move: copy, verify the copy landed, then delete.
+            do {
+                try fileManager.copyItem(at: source, to: prefixURL)
+                guard fileManager.fileExists(atPath: prefixURL.appendingPathComponent("user.reg").path) else {
+                    try? fileManager.removeItem(at: prefixURL)
+                    return
+                }
+                try? fileManager.removeItem(at: source)
+            } catch {
+                try? fileManager.removeItem(at: prefixURL)
+                return
+            }
+        }
+        normalizeCDriveSymlink()
+        // Time Machine must not churn on the prefix (spec: excluded in all modes).
+        var backupValues = URLResourceValues()
+        backupValues.isExcludedFromBackup = true
+        var adopted = prefixURL
+        try? adopted.setResourceValues(backupValues)
+    }
+
+    /// wine's own prefixes use a relative "c:" -> "../drive_c" symlink, which
+    /// is what makes them relocatable. Rewrite an absolute one after a move.
+    private func normalizeCDriveSymlink() {
+        let cDrive = prefixURL.appendingPathComponent("dosdevices", isDirectory: true)
+            .appendingPathComponent("c:")
+        guard let target = try? fileManager.destinationOfSymbolicLink(atPath: cDrive.path),
+              target != "../drive_c" else { return }
+        try? fileManager.removeItem(at: cDrive)
+        try? fileManager.createSymbolicLink(atPath: cDrive.path, withDestinationPath: "../drive_c")
+    }
+
+    /// Conservative busy check: if the bundled wineserver is running at all,
+    /// skip adoption this session (pgrep -f on the binary path).
+    static func isBundledWineserverRunning() -> Bool {
+        guard let result = try? ProcessRunner.run(
+            executablePath: "/usr/bin/pgrep",
+            arguments: ["-f", WineRuntime.shared.wineserverBinaryURL.path],
+            timeout: 5
+        ) else {
+            return false
+        }
+        return result.exitCode == 0
+    }
+
     // MARK: - Resolution
 
     private static func resolve(bundleURL: URL, fallbackRoot: URL,
