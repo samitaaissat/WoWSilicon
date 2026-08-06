@@ -1,0 +1,60 @@
+{
+    "version": "0.1.0",
+    "id": "d9fe6084-cba6-4c43-b222-79ae0776d64a",
+    "timestamp": "2026-08-06T20:20:14.595051Z",
+    "vcs": {
+        "type": "git",
+        "revision": "742c995c9cd79d09ef0fe5ba78d660d135bf8acc",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Stores/UserPrefsStore.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:43f0f3b3f496999cbb5bfb634dae3e8b6d918008",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 4,
+                            "end_line": 5
+                        },
+                        {
+                            "start_line": 9,
+                            "end_line": 11
+                        },
+                        {
+                            "start_line": 52,
+                            "end_line": 53
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/UserPrefsStoreTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:43f0f3b3f496999cbb5bfb634dae3e8b6d918008",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 46
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
