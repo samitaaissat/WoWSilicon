@@ -1,0 +1,70 @@
+{
+    "version": "0.1.0",
+    "id": "effdca5a-1e8e-480a-bddf-855ecb77a3d4",
+    "timestamp": "2026-08-06T21:12:41.246045Z",
+    "vcs": {
+        "type": "git",
+        "revision": "d9726bb5f54e255e0866fc3e40d3d4604796395d",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/ViewModels/MainDashboardViewModel.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:652c3f8b2fcb67f62c766f3896b78b1db5bf6b68",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 26,
+                            "end_line": 26
+                        },
+                        {
+                            "start_line": 52,
+                            "end_line": 54
+                        },
+                        {
+                            "start_line": 72,
+                            "end_line": 84
+                        },
+                        {
+                            "start_line": 118,
+                            "end_line": 118
+                        },
+                        {
+                            "start_line": 201,
+                            "end_line": 204
+                        },
+                        {
+                            "start_line": 240,
+                            "end_line": 284
+                        },
+                        {
+                            "start_line": 345,
+                            "end_line": 346
+                        },
+                        {
+                            "start_line": 374,
+                            "end_line": 376
+                        },
+                        {
+                            "start_line": 653,
+                            "end_line": 653
+                        },
+                        {
+                            "start_line": 698,
+                            "end_line": 698
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
