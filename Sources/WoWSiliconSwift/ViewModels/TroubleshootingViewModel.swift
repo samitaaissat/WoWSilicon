@@ -16,6 +16,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
     @Published var status: Status = .idle
     @Published var runtimeVersion: String = "Not found"
     @Published var rosettaStatus: String = "missing"
+    @Published var storageDescription: String = ""
     @Published var debugLog: String = ""
     private var fullDebugLog: String = ""
     @Published var alert: ManagerAlert?
@@ -42,6 +43,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
             let runtime = WineRuntime.shared
             let version = runtime.runtimeVersion ?? "Not found"
             let rosetta = runtime.rosettaLoaderURL != nil ? "ok" : "missing"
+            let storageDescription = PortableStorage.shared.displayDescription
 
             // Capture current toggle states
             let hideName = await self.hideMacUserName
@@ -56,6 +58,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
             Task { @MainActor in
                 self.runtimeVersion = version
                 self.rosettaStatus = rosetta
+                self.storageDescription = storageDescription
                 self.debugLog = result.preview
                 self.fullDebugLog = result.full
                 self.status = .ready
@@ -71,10 +74,17 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
         }
     }
 
-    func deleteWinePrefixes() {
+    func resetWinePrefix() {
+        perform(action: "Resetting the Wine prefix…") {
+            let deleted = try TroubleshootingService.deleteDedicatedPrefix()
+            return "Deleted:\n" + deleted.joined(separator: "\n") + "\n\nThe Wine environment will be set up again on the next launch."
+        }
+    }
+
+    func deleteLegacyPrefixes() {
         let gamePath = context.gamePath
-        perform(action: "Deleting Wine prefixes…") {
-            let deleted = try TroubleshootingService.deleteWinePrefixes(gamePath: gamePath)
+        perform(action: "Deleting legacy Wine prefixes…") {
+            let deleted = try TroubleshootingService.deleteLegacyPrefixes(gamePath: gamePath)
             return "Deleted:\n" + deleted.joined(separator: "\n")
         }
     }
@@ -103,10 +113,10 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
         }
     }
 
-    func resetApplicationSupport() {
+    func resetStorage() {
         perform(action: "Resetting WoWSilicon…") {
-            try TroubleshootingService.resetApplicationSupport()
-            return "WoWSilicon configuration removed. Please restart the app."
+            let deleted = try TroubleshootingService.resetStorage()
+            return "Deleted:\n" + deleted.joined(separator: "\n") + "\n\nPlease restart the app."
         }
     }
 

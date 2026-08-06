@@ -4,6 +4,7 @@ struct TroubleshootingView: View {
     @ObservedObject var viewModel: TroubleshootingViewModel
     let onClose: () -> Void
     @State private var showRestoreConfirmation = false
+    @State private var showLegacyPrefixConfirmation = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -12,6 +13,7 @@ struct TroubleshootingView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     runtimeSection
+                    storageSection
                     actionsSection
                     debugLogSection
                 }
@@ -52,13 +54,40 @@ struct TroubleshootingView: View {
         }
     }
 
+    private var storageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Storage").font(.headline)
+            Text(viewModel.storageDescription)
+                .font(.callout)
+                .textSelection(.enabled)
+        }
+    }
+
     private var actionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Actions").font(.headline)
             Button("Delete WDB Cache", action: viewModel.deleteWDB)
                 .buttonStyle(.bordered)
-            Button("Delete Wine Prefixes", action: viewModel.deleteWinePrefixes)
+            Button("Reset Wine Prefix", action: viewModel.resetWinePrefix)
                 .buttonStyle(.bordered)
+            VStack(alignment: .leading, spacing: 4) {
+                Button("Delete Legacy Wine Prefixes (~/.wine)") {
+                    showLegacyPrefixConfirmation = true
+                }
+                .buttonStyle(.bordered)
+                .confirmationDialog(
+                    "Delete legacy Wine prefixes?",
+                    isPresented: $showLegacyPrefixConfirmation
+                ) {
+                    Button("Delete", role: .destructive, action: viewModel.deleteLegacyPrefixes)
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("This deletes ~/.wine and the game folder's .wine directory. ~/.wine is shared with OTHER Wine software (CrossOver, GameHub, …) — only do this if nothing else on this Mac uses Wine.")
+                }
+                Text("Only needed to clean up after WoWSilicon 2.x")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Button("Restore CrossOver Modifications") {
                     showRestoreConfirmation = true
@@ -79,8 +108,8 @@ struct TroubleshootingView: View {
             }
             Button("Delete vanilla-tweaks", action: viewModel.deleteVanillaTweaks)
                 .buttonStyle(.bordered)
-            Button(role: .destructive, action: viewModel.resetApplicationSupport) {
-                Text("Reset WoWSilicon (delete config)")
+            Button(role: .destructive, action: viewModel.resetStorage) {
+                Text("Reset WoWSilicon (delete all data)")
             }
             .buttonStyle(.borderedProminent)
         }

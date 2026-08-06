@@ -67,4 +67,76 @@ final class TroubleshootingServiceTests: XCTestCase {
         tempURLs.append(url)
         return url
     }
+
+    func testDeleteDedicatedPrefixDeletesOnlyThePrefix() throws {
+        let root = try makeTemporaryDirectory()
+        let prefix = root.appendingPathComponent("prefix", isDirectory: true)
+        try FileManager.default.createDirectory(at: prefix, withIntermediateDirectories: true)
+        let bystander = root.appendingPathComponent(".wine", isDirectory: true)
+        try FileManager.default.createDirectory(at: bystander, withIntermediateDirectories: true)
+
+        let deleted = try TroubleshootingService.deleteDedicatedPrefix(prefixURL: prefix)
+
+        XCTAssertEqual(deleted, [prefix.path])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: prefix.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: bystander.path), "a .wine dir is never part of this action")
+    }
+
+    func testDeleteDedicatedPrefixThrowsWhenAbsent() throws {
+        let root = try makeTemporaryDirectory()
+        XCTAssertThrowsError(try TroubleshootingService.deleteDedicatedPrefix(
+            prefixURL: root.appendingPathComponent("prefix"))) { error in
+            XCTAssertEqual(error as? TroubleshootingServiceError, .nothingToDelete)
+        }
+    }
+
+    func testDeleteLegacyPrefixesTargetsHomeAndGameDotWine() throws {
+        let home = try makeTemporaryDirectory()
+        let game = try makeTemporaryDirectory()
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".wine"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: game.appendingPathComponent(".wine"), withIntermediateDirectories: true)
+
+        let deleted = try TroubleshootingService.deleteLegacyPrefixes(homeDirectory: home, gamePath: game.path)
+
+        XCTAssertEqual(Set(deleted), Set([
+            home.appendingPathComponent(".wine").path,
+            game.appendingPathComponent(".wine").path,
+        ]))
+    }
+
+    func testResetStorageDeletesActiveRootAndFallback() throws {
+        let parent = try makeTemporaryDirectory()
+        let fallback = try makeTemporaryDirectory()
+        let storage = PortableStorage(
+            bundleURL: parent.appendingPathComponent("WoWSilicon.app", isDirectory: true),
+            fallbackSupportRoot: fallback
+        )
+        let fallbackDir = storage.legacySupportDirectory
+        try FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
+        try "x".write(to: fallbackDir.appendingPathComponent("prefs.json"), atomically: true, encoding: .utf8)
+
+        let deleted = try TroubleshootingService.resetStorage(storage: storage)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: storage.dataRootURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fallbackDir.path))
+        XCTAssertEqual(Set(deleted), Set([storage.dataRootURL.path, fallbackDir.path]))
+    }
+
+    func testDebugLogContainsStorageBlock() throws {
+        let context = TroubleshootingContext(
+            gamePath: nil,
+            currentVersion: nil,
+            isGamePatched: false,
+            storageDescription: "Portable — /Volumes/USB/WoWSilicon Data",
+            dataRootPath: "/Volumes/USB/WoWSilicon Data",
+            prefixPath: "/Volumes/USB/WoWSilicon Data/prefix"
+        )
+
+        let log = TroubleshootingService.generateDebugLog(
+            context: context, hideMacUserName: false, includeLatestErrorLog: false).full
+
+        XCTAssertTrue(log.contains("=== Storage ==="))
+        XCTAssertTrue(log.contains("Location: Portable — /Volumes/USB/WoWSilicon Data"))
+        XCTAssertTrue(log.contains("Wine prefix: /Volumes/USB/WoWSilicon Data/prefix"))
+    }
 }
