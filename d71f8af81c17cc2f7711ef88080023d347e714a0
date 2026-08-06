@@ -1,0 +1,174 @@
+{
+    "version": "0.1.0",
+    "id": "81af0e0c-12bd-4339-a694-80538e04f40c",
+    "timestamp": "2026-08-06T20:10:30.003752Z",
+    "vcs": {
+        "type": "git",
+        "revision": "d71f8af81c17cc2f7711ef88080023d347e714a0",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "docs/superpowers/plans/2026-08-06-portable-storage.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:78715f2b1c15086a50e8ddb5710bd911edbf634a",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 74
+                        },
+                        {
+                            "start_line": 77,
+                            "end_line": 230
+                        },
+                        {
+                            "start_line": 232,
+                            "end_line": 314
+                        },
+                        {
+                            "start_line": 318,
+                            "end_line": 323
+                        },
+                        {
+                            "start_line": 326,
+                            "end_line": 348
+                        },
+                        {
+                            "start_line": 353,
+                            "end_line": 353
+                        },
+                        {
+                            "start_line": 355,
+                            "end_line": 390
+                        },
+                        {
+                            "start_line": 393,
+                            "end_line": 403
+                        },
+                        {
+                            "start_line": 407,
+                            "end_line": 545
+                        },
+                        {
+                            "start_line": 548,
+                            "end_line": 548
+                        },
+                        {
+                            "start_line": 550,
+                            "end_line": 715
+                        },
+                        {
+                            "start_line": 718,
+                            "end_line": 738
+                        },
+                        {
+                            "start_line": 740,
+                            "end_line": 763
+                        },
+                        {
+                            "start_line": 765,
+                            "end_line": 807
+                        },
+                        {
+                            "start_line": 809,
+                            "end_line": 830
+                        },
+                        {
+                            "start_line": 832,
+                            "end_line": 850
+                        },
+                        {
+                            "start_line": 852,
+                            "end_line": 861
+                        },
+                        {
+                            "start_line": 863,
+                            "end_line": 886
+                        },
+                        {
+                            "start_line": 888,
+                            "end_line": 888
+                        },
+                        {
+                            "start_line": 890,
+                            "end_line": 890
+                        },
+                        {
+                            "start_line": 892,
+                            "end_line": 945
+                        },
+                        {
+                            "start_line": 948,
+                            "end_line": 1061
+                        },
+                        {
+                            "start_line": 1063,
+                            "end_line": 1089
+                        },
+                        {
+                            "start_line": 1092,
+                            "end_line": 1097
+                        },
+                        {
+                            "start_line": 1100,
+                            "end_line": 1108
+                        },
+                        {
+                            "start_line": 1111,
+                            "end_line": 1301
+                        },
+                        {
+                            "start_line": 1304,
+                            "end_line": 1467
+                        },
+                        {
+                            "start_line": 1470,
+                            "end_line": 1490
+                        },
+                        {
+                            "start_line": 1494,
+                            "end_line": 1631
+                        },
+                        {
+                            "start_line": 1636,
+                            "end_line": 1677
+                        },
+                        {
+                            "start_line": 1680,
+                            "end_line": 1716
+                        },
+                        {
+                            "start_line": 1718,
+                            "end_line": 1809
+                        },
+                        {
+                            "start_line": 1811,
+                            "end_line": 1822
+                        },
+                        {
+                            "start_line": 1825,
+                            "end_line": 1980
+                        },
+                        {
+                            "start_line": 1983,
+                            "end_line": 2433
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
