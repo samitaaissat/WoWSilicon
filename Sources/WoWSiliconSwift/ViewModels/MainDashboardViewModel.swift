@@ -1116,11 +1116,15 @@ final class MainDashboardViewModel: ObservableObject {
     func makeTroubleshootingContext() -> TroubleshootingContext {
         let version = versionManager.currentVersion
         let trimmedGame = version?.gamePath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let storage = PortableStorage.shared
 
         return TroubleshootingContext(
             gamePath: trimmedGame.isEmpty ? nil : trimmedGame,
             currentVersion: version,
-            isGamePatched: isGamePatched
+            isGamePatched: isGamePatched,
+            storageDescription: storage.displayDescription,
+            dataRootPath: storage.dataRootURL.path,
+            prefixPath: storage.prefixURL.path
         )
     }
 }

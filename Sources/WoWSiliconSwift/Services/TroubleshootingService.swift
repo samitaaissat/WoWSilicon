@@ -1,6 +1,6 @@
 import Foundation
 
-enum TroubleshootingServiceError: LocalizedError {
+enum TroubleshootingServiceError: LocalizedError, Equatable {
     case gamePathMissing
     case nothingToDelete
     case operationFailed(String)
@@ -21,6 +21,9 @@ struct TroubleshootingContext: Sendable {
     let gamePath: String?
     let currentVersion: GameVersion?
     let isGamePatched: Bool
+    let storageDescription: String
+    let dataRootPath: String
+    let prefixPath: String
 }
 
 struct CrossOverRestoreResult: Equatable {
@@ -54,23 +57,34 @@ enum TroubleshootingService {
         return deleted
     }
 
-    static func deleteWinePrefixes(gamePath: String?) throws -> [String] {
-        guard let path = gamePath?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
-            throw TroubleshootingServiceError.gamePathMissing
-        }
+    /// Primary reset: deletes ONLY the app's dedicated prefix.
+    static func deleteDedicatedPrefix(prefixURL: URL = PortableStorage.shared.prefixURL) throws -> [String] {
         let fm = FileManager.default
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let userWine = home.appendingPathComponent(".wine", isDirectory: true)
-        let gameWine = URL(fileURLWithPath: path, isDirectory: true).appendingPathComponent(".wine", isDirectory: true)
+        guard fm.fileExists(atPath: prefixURL.path) else {
+            throw TroubleshootingServiceError.nothingToDelete
+        }
+        try fm.removeItem(at: prefixURL)
+        return [prefixURL.path]
+    }
+
+    /// Legacy cleanup for pre-3.x installs. ~/.wine is the SHARED system
+    /// default prefix — CrossOver, GameHub and other Wine apps may own state
+    /// in it — so this is a separate, explicitly-confirmed action and never
+    /// part of the default reset.
+    static func deleteLegacyPrefixes(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        gamePath: String?
+    ) throws -> [String] {
+        let fm = FileManager.default
+        var candidates = [homeDirectory.appendingPathComponent(".wine", isDirectory: true)]
+        if let path = gamePath?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty {
+            candidates.append(URL(fileURLWithPath: path, isDirectory: true).appendingPathComponent(".wine", isDirectory: true))
+        }
 
         var deleted: [String] = []
-        if fm.fileExists(atPath: userWine.path) {
-            try fm.removeItem(at: userWine)
-            deleted.append(userWine.path)
-        }
-        if fm.fileExists(atPath: gameWine.path) {
-            try fm.removeItem(at: gameWine)
-            deleted.append(gameWine.path)
+        for url in candidates where fm.fileExists(atPath: url.path) {
+            try fm.removeItem(at: url)
+            deleted.append(url.path)
         }
         if deleted.isEmpty {
             throw TroubleshootingServiceError.nothingToDelete
@@ -140,13 +154,23 @@ enum TroubleshootingService {
         try FileManager.default.removeItem(at: tweaked)
     }
 
-    static func resetApplicationSupport() throws {
-        let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("WoWSilicon", isDirectory: true)
-        guard FileManager.default.fileExists(atPath: support.path) else {
+    /// Deletes the active storage root (Data folder including the prefix) and,
+    /// when running portable, also the Application Support fallback directory.
+    static func resetStorage(storage: PortableStorage = .shared) throws -> [String] {
+        let fm = FileManager.default
+        var targets = [storage.dataRootURL]
+        if storage.isPortable {
+            targets.append(storage.legacySupportDirectory)
+        }
+        var deleted: [String] = []
+        for url in targets where fm.fileExists(atPath: url.path) {
+            try fm.removeItem(at: url)
+            deleted.append(url.path)
+        }
+        if deleted.isEmpty {
             throw TroubleshootingServiceError.nothingToDelete
         }
-        try FileManager.default.removeItem(at: support)
+        return deleted
     }
 
     static func generateDebugLog(context: TroubleshootingContext, hideMacUserName: Bool, includeLatestErrorLog: Bool) -> (full: String, preview: String) {
@@ -208,6 +232,18 @@ enum TroubleshootingService {
         if let game = context.gamePath {
             baseLog += FileManager.default.fileExists(atPath: game) ? "  Game path exists\n" : "  Game path missing\n"
         }
+
+        baseLog += "\n=== Storage ===\n"
+        baseLog += "Location: \(context.storageDescription)\n"
+        baseLog += "Data root: \(context.dataRootPath)"
+        baseLog += FileManager.default.fileExists(atPath: context.dataRootPath) ? " (exists)\n" : " (missing)\n"
+        baseLog += "Wine prefix: \(context.prefixPath)"
+        baseLog += FileManager.default.fileExists(atPath: context.prefixPath) ? " (exists)\n" : " (missing)\n"
+        let sentinelPath = (context.prefixPath as NSString).appendingPathComponent(PrefixBootstrapService.sentinelFileName)
+        let sentinel = (try? String(contentsOfFile: sentinelPath, encoding: .utf8)) ?? "missing"
+        baseLog += "Prefix sentinel: \(sentinel)\n"
+        let legacyWine = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".wine")
+        baseLog += "Legacy ~/.wine present: " + (FileManager.default.fileExists(atPath: legacyWine.path) ? "yes\n" : "no\n")
 
         var fullLog = baseLog
         var previewLog = baseLog
