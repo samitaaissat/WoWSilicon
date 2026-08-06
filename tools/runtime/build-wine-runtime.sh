@@ -133,18 +133,22 @@ while IFS= read -r -d '' candidate; do
   fi
 done < <(find "$STAGING_DIR/wine" -type f -print0)
 
-# --- Smoke test under Rosetta ------------------------------------------------
-SMOKE_PREFIX="${RUNNER_TEMP:-$WORK_DIR}/testpfx"
-rm -rf "$SMOKE_PREFIX"
-arch -x86_64 "$STAGING_DIR/wine/bin/wine" --version
-WINEPREFIX="$SMOKE_PREFIX" WINEDLLOVERRIDES="mscoree=d;mshtml=d" \
-  arch -x86_64 "$STAGING_DIR/wine/bin/wine" wineboot -u
-WINEPREFIX="$SMOKE_PREFIX" arch -x86_64 "$STAGING_DIR/wine/bin/wineserver" -w
-test -f "$SMOKE_PREFIX/system.reg"
-
 # --- Package -----------------------------------------------------------------
+# Package BEFORE the smoke test so the tarball exists (and can be uploaded as
+# a workflow artifact) even when the smoke test fails — the Intel CI runner is
+# only a build host; the runtime's real environment is Rosetta on Apple Silicon.
 tar -C "$STAGING_DIR" -cJf "$DIST_DIR/$ARTIFACT" wine
 (cd "$DIST_DIR" && shasum -a 256 "$ARTIFACT" > "$ARTIFACT.sha256")
 
 echo "Runtime artifacts:"
 ls -lh "$DIST_DIR"
+
+# --- Smoke test under Rosetta ------------------------------------------------
+# WINEDEBUG=+loaddll logs the PE loader's dll search so a c0000135 shows WHY.
+SMOKE_PREFIX="${RUNNER_TEMP:-$WORK_DIR}/testpfx"
+rm -rf "$SMOKE_PREFIX"
+arch -x86_64 "$STAGING_DIR/wine/bin/wine" --version
+WINEPREFIX="$SMOKE_PREFIX" WINEDLLOVERRIDES="mscoree=d;mshtml=d" WINEDEBUG=+loaddll \
+  arch -x86_64 "$STAGING_DIR/wine/bin/wine" wineboot -u
+WINEPREFIX="$SMOKE_PREFIX" arch -x86_64 "$STAGING_DIR/wine/bin/wineserver" -w
+test -f "$SMOKE_PREFIX/system.reg"
