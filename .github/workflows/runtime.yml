@@ -55,6 +55,16 @@ jobs:
           RUNTIME_BUILD_NUMBER: ${{ steps.build.outputs.build_number }}
         run: bash tools/runtime/build-wine-runtime.sh
 
+      # Upload the packaged runtime even when the smoke test fails, so it can
+      # be validated on real Apple Silicon hardware (the runner is Intel-only).
+      - name: Upload runtime artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wowsilicon-wine-${{ steps.build.outputs.build_number }}-osx64
+          path: .build/wine-runtime/dist/
+          retention-days: 7
+
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
