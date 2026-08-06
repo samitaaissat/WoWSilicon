@@ -8,20 +8,20 @@ struct VersionStore {
     }
 
     private let fileManager: FileManager
-    private let supportDirectory: URL?
+    private let configDirectory: URL?
     private let directoryName = "WoWSilicon"
     private let fileName = "versions.json"
 
-    init(fileManager: FileManager = .default, supportDirectory: URL? = nil) {
+    init(fileManager: FileManager = .default, configDirectory: URL? = nil) {
         self.fileManager = fileManager
-        self.supportDirectory = supportDirectory
+        self.configDirectory = configDirectory
     }
 
     func loadVersionManager() -> LoadResult {
         var warnings: [String] = []
 
         guard let versionsURL = versionsFileURL() else {
-            warnings.append("Failed to resolve Application Support directory. Using defaults.")
+            warnings.append("Failed to resolve the configuration directory. Using defaults.")
             var fallback = VersionManager.makeDefault()
             fallback.ensureDefaults()
             return LoadResult(manager: fallback, warnings: warnings)
@@ -86,22 +86,22 @@ struct VersionStore {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    private func versionsFileURL() -> URL? {
-        guard let supportDirectory = supportDirectory ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+    private func resolvedConfigDirectory() -> URL? {
+        if let configDirectory {
+            return configDirectory
+        }
+        guard let supportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }
-        return supportDirectory
-            .appendingPathComponent(directoryName, isDirectory: true)
-            .appendingPathComponent(fileName, isDirectory: false)
+        return supportDirectory.appendingPathComponent(directoryName, isDirectory: true)
+    }
+
+    private func versionsFileURL() -> URL? {
+        resolvedConfigDirectory()?.appendingPathComponent(fileName, isDirectory: false)
     }
 
     private func legacyVersionsFileURL() -> URL? {
-        guard let supportDirectory = supportDirectory ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        return supportDirectory
-            .appendingPathComponent(directoryName, isDirectory: true)
-            .appendingPathComponent("version_manager.json", isDirectory: false)
+        resolvedConfigDirectory()?.appendingPathComponent("version_manager.json", isDirectory: false)
     }
 
     private func loadLegacyVersionManager() -> VersionManager? {
