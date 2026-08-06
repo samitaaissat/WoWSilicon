@@ -1,0 +1,68 @@
+{
+    "version": "0.1.0",
+    "id": "43d20537-9972-41e0-912a-011561ac31c1",
+    "timestamp": "2026-08-06T20:32:28.408711Z",
+    "vcs": {
+        "type": "git",
+        "revision": "e0bc1fd8af184dbe60fdde2982e1c94c8c52380d",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PortableStorage.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:131278ff90c4a26d3723e3b0395efe5009c5e77b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 148,
+                            "end_line": 148
+                        },
+                        {
+                            "start_line": 150,
+                            "end_line": 184
+                        },
+                        {
+                            "start_line": 187,
+                            "end_line": 195
+                        },
+                        {
+                            "start_line": 198,
+                            "end_line": 208
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/PortableStorageAdoptionTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:131278ff90c4a26d3723e3b0395efe5009c5e77b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 20
+                        },
+                        {
+                            "start_line": 23,
+                            "end_line": 121
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
