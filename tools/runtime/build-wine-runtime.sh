@@ -51,7 +51,10 @@ mkdir -p "$BUILD_DIR" "$STAGING_DIR" "$DIST_DIR"
 if [[ ! -d "$SRC_DIR/.git" ]]; then
   git clone --branch "$WINE_BRANCH" --single-branch "$WINE_REPO" "$SRC_DIR"
 fi
-git -C "$SRC_DIR" fetch origin "$WINE_BRANCH"
+# Fetch the pinned commit by SHA, not the branch: WineAndAqua force-pushes its
+# macOS branches, and a moved branch tip makes the old pin unreachable by
+# branch fetch (GitHub still serves the orphaned commit object directly).
+git -C "$SRC_DIR" fetch origin "$WINE_COMMIT"
 git -C "$SRC_DIR" checkout --detach "$WINE_COMMIT"
 
 # --- Build environment ----------------------------------------------------
