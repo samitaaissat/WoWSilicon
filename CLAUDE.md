@@ -6,6 +6,8 @@ Guidance for AI coding agents working in this repository.
 
 WoWSilicon is a native macOS launcher for older World of Warcraft clients (Vanilla 1.12.1, The Burning Crusade 2.4.3, Wrath of the Lich King 3.3.5a) on Apple Silicon Macs. It orchestrates a bundled, pre-patched Wine runtime (built from `WineAndAqua/wine`, branch `wine-11.14-macos`, shipped inside the app at `Contents/SharedSupport/wine/`), RosettaX87, DX9 translation (d9vk), and runtime patching so 2006–2010 era clients run efficiently on modern macOS — no CrossOver install required. It also ships an addon manager (Git URL installs, bulk import/export), a mod manager for DLL-style mods, a realmlist editor, graphics options, and Sparkle-based auto-updates.
 
+All mutable state is portable: a `WoWSilicon Data` folder beside the .app holds the dedicated Wine prefix (`prefix/`) and configuration (`versions.json`, `prefs.json`), resolved by `PortableStorage` at startup with a silent fallback to `~/Library/Application Support/WoWSilicon` when the app's location is read-only (DMG, App Translocation, non-admin /Applications). The app never uses the shared global `~/.wine`.
+
 The app is written in Swift 6 with SwiftUI + AppKit. It is Apple Silicon only (arm64).
 
 ## Repository layout
@@ -13,8 +15,8 @@ The app is written in Swift 6 with SwiftUI + AppKit. It is Apple Silicon only (a
 - `Sources/WoWSiliconSwift/` — the whole app, as a single SwiftPM executable target:
   - `WoWSiliconSwiftApp.swift` — `@main` entry point (SwiftUI `App`, single fixed-size window, `AppDelegate`).
   - `Models/` — Codable domain models (`GameVersion.swift` holds `GameVersion`, `VersionSettings`, `GraphicsSettings`, and `VersionManager` with the three built-in version profiles; `UserPrefs.swift`).
-  - `Stores/` — persistence (`VersionStore` reads/writes `versions.json` under Application Support with legacy migration; `UserPrefsStore`).
-  - `Services/` — the bulk of the logic: `WineRuntime` (single authority for bundled Wine runtime paths, version, and validation), `LaunchService` (launching via the bundled Wine runtime), `PatchService`, `PatchingStatusChecker`, `ConfigService` (writes `WTF/Config.wtf`), `AddonService`, `ModService`, `RealmlistService`, `RetinaModeService`, `OptionAsAltService`, `VanillaTweaksService`, `DXVKConfigService`, `UpdaterService` (Sparkle), `TelemetryService`, `ProcessRunner`, etc.
+  - `Stores/` — persistence (`VersionStore` reads/writes `versions.json` in the `PortableStorage`-resolved config directory (portable Data folder, or Application Support in fallback mode); `UserPrefsStore`).
+  - `Services/` — the bulk of the logic: `PortableStorage` (storage-root authority), `PrefixBootstrapService` (explicit sentinel-gated prefix initialization), `WineRuntime` (single authority for bundled Wine runtime paths, version, and validation), `LaunchService` (launching via the bundled Wine runtime), `PatchService`, `PatchingStatusChecker`, `ConfigService` (writes `WTF/Config.wtf`), `AddonService`, `ModService`, `RealmlistService`, `RetinaModeService`, `OptionAsAltService`, `VanillaTweaksService`, `DXVKConfigService`, `UpdaterService` (Sparkle), `TelemetryService`, `ProcessRunner`, etc.
   - `ViewModels/` — MVVM view models (`MainDashboardViewModel`, `AddonManagerViewModel`, `ModManagerViewModel`, `TroubleshootingViewModel`).
   - `Views/` — SwiftUI views; `Views/Modifiers/` holds shared view modifiers/environment registration.
   - `Resources/` — binary patching payloads bundled into the app (`Patching/d9vk`, `Patching/libSiliconPatch/{vanilla,wotlk}`, `Patching/rosettax87`, `Patching/winerosetta`, `Patching/vanilla-tweaks`) and the app icon source PNG. Treat these as vendored third-party binaries; do not regenerate them casually. CrossOver patching was removed in 3.0.0: `Patching/winerosetta` now holds only the game-folder DLLs (`winerosetta.dll`, `libDllLdr.dll`) — its former `ntdll.so` payload is gone because the equivalent patches are built into the bundled Wine runtime.
@@ -80,6 +82,7 @@ Notes:
 - The app modifies user-selected directories outside the repo (the WoW game folder) and shells out to processes (`ProcessRunner`, AppleScript terminal launches). It no longer modifies the CrossOver bundle or any other application's bundle. Be careful with path handling, quoting, and command construction when touching `LaunchService`, `PatchService`, or `ProcessRunner` — user input (game paths, Git URLs, env variables) flows into these.
 - The vendored DLLs/binaries under `Sources/WoWSiliconSwift/Resources/Patching/` are third-party payloads with their own LICENSE files; don't replace them without reviewing provenance.
 - Telemetry is opt-in (`UserPrefs.telemetryEnabled`), sampled, and gated by a server-side config; `TelemetryService` sends only coarse metadata (app/client version, macOS version, realmlist host). Keep it privacy-preserving if modified.
+- `~/.wine` belongs to other Wine software (CrossOver, etc.); the app must never write to it — the only code allowed to touch it is the explicitly-confirmed `deleteLegacyPrefixes` troubleshooting action.
 
 ## Known inconsistencies to be aware of
 
