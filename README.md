@@ -74,6 +74,21 @@ xattr -cr /Applications/WoWSilicon.app
 
 Then open WoWSilicon, select the game folder, apply the game patch, and launch the selected client profile.
 
+## Portable by design
+
+WoWSilicon keeps everything it needs in a `WoWSilicon Data` folder right next
+to `WoWSilicon.app` — your settings and its own private Wine environment.
+
+- **Move or copy your whole setup** by moving the app and the `WoWSilicon
+  Data` folder together (another folder, an external drive, a new Mac).
+- **Do not delete `WoWSilicon Data`** unless you want a factory reset — that
+  folder *is* your WoWSilicon installation.
+- If the app runs from a read-only location (for example directly from the
+  DMG), it temporarily keeps its data in `~/Library/Application
+  Support/WoWSilicon` and adopts the portable folder automatically once you
+  move the app somewhere writable. The Troubleshooting window shows which
+  location is active.
+
 ## Bundled components & licenses
 
 WoWSilicon.app ships the following third-party components:
