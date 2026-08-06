@@ -23,6 +23,7 @@ final class MainDashboardViewModel: ObservableObject {
     }
     @Published private(set) var isGameOperationInProgress: Bool = false
     @Published private(set) var isUnpatchingOperation: Bool = false
+    @Published private(set) var isPrefixBootstrapping: Bool = false
     @Published private(set) var patchFeedback: PatchFeedback?
     @Published private(set) var canLaunch: Bool = false
     @Published private(set) var currentVersionHasLauncher: Bool = false
@@ -48,8 +49,9 @@ final class MainDashboardViewModel: ObservableObject {
     @Published private(set) var supportsMods: Bool = false
     @Published private(set) var versions: [GameVersion] = []
     @Published private(set) var currentVersionID: String = VersionManager.defaultCurrentVersionID
-    private let versionStore = VersionStore()
-    private let prefsStore = UserPrefsStore()
+    private let storage: PortableStorage
+    private let versionStore: VersionStore
+    private let prefsStore: UserPrefsStore
     private let launchService = LaunchService.shared
     private var versionManager: VersionManager
     private var userPrefs: UserPrefs
@@ -67,8 +69,19 @@ final class MainDashboardViewModel: ObservableObject {
     
     static let preview = MainDashboardViewModel()
 
-    init() {
-        if MigrationService.legacyDirectoryExists() {
+    init(storage: PortableStorage = .shared) {
+        self.storage = storage
+        let legacyMigrationPending = MigrationService.legacyDirectoryExists()
+        if !legacyMigrationPending {
+            // Ordering: the TurtleSilicon prompt must win first when present —
+            // pre-existing destination files would break its move-based
+            // migration, and the portable import has the same hazard.
+            storage.performFirstRunImportIfNeeded()
+            storage.adoptFallbackPrefixIfNeeded()
+        }
+        versionStore = VersionStore(configDirectory: storage.configDirectory)
+        prefsStore = UserPrefsStore(configDirectory: storage.configDirectory)
+        if legacyMigrationPending {
             shouldShowMigrationPrompt = true
         }
 
@@ -102,6 +115,7 @@ final class MainDashboardViewModel: ObservableObject {
         refreshRetinaModeStatus()
         refreshVisualCppRuntimeStatus()
         refreshGitStatus()
+        ensurePrefixReady()
     }
 
     func selectVersion(id: String) {
@@ -184,7 +198,10 @@ final class MainDashboardViewModel: ObservableObject {
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.init(filenameExtension: "exe")].compactMap { $0 }
-        panel.directoryURL = URL(fileURLWithPath: "\(NSHomeDirectory())/.wine/drive_c")
+        let driveC = storage.prefixURL.appendingPathComponent("drive_c", isDirectory: true)
+        panel.directoryURL = FileManager.default.fileExists(atPath: driveC.path)
+            ? driveC
+            : URL(fileURLWithPath: NSHomeDirectory())
         panel.level = .modalPanel
 
         if panel.runModal() == .OK, let exeURL = panel.url {
@@ -217,6 +234,57 @@ final class MainDashboardViewModel: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             LaunchService.forceQuitWine()
             DispatchQueue.main.async { self?.refreshSnapshot() }
+        }
+    }
+
+    /// Runs the explicit prefix bootstrap when needed, with UI feedback.
+    /// The first run (and the first run after an app update) takes minutes
+    /// under Rosetta — without this gate that wait looked like a frozen
+    /// launch and users force-killed wine mid-initialization.
+    func ensurePrefixReady(then completion: (@MainActor @Sendable () -> Void)? = nil) {
+        guard !PrefixBootstrapService.shared.isPrefixReady() else {
+            completion?()
+            return
+        }
+        guard !isPrefixBootstrapping else { return }
+        isPrefixBootstrapping = true
+        patchFeedback = PatchFeedback(
+            title: "Wine Environment",
+            message: "Setting up the Wine environment — the first run can take a few minutes.",
+            isError: false
+        )
+        let remapOptionAsAlt = versionManager.currentVersion?.settings.remapOptionAsAlt ?? false
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                try PrefixBootstrapService.shared.bootstrapIfNeeded()
+                // Fresh prefixes lose registry-backed toggles; re-apply the one
+                // whose desired state the config persists. (Retina mode has no
+                // persisted source of truth — it stays at wine's default until
+                // the user toggles it.)
+                if remapOptionAsAlt {
+                    try? OptionAsAltService.setOptionAsAlt(enabled: true)
+                }
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.isPrefixBootstrapping = false
+                    self.patchFeedback = nil
+                    self.refreshOptionAsAltStatus()
+                    self.refreshRetinaModeStatus()
+                    self.refreshVisualCppRuntimeStatus()
+                    completion?()
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.isPrefixBootstrapping = false
+                    self.patchFeedback = PatchFeedback(
+                        title: "Wine Environment",
+                        message: error.localizedDescription,
+                        isError: true
+                    )
+                }
+            }
         }
     }
 
@@ -274,6 +342,8 @@ final class MainDashboardViewModel: ObservableObject {
                 patchFeedback = PatchFeedback(title: "Migration Failed", message: error.localizedDescription, isError: true)
             }
         }
+        storage.performFirstRunImportIfNeeded()
+        storage.adoptFallbackPrefixIfNeeded()
         // Reload and persist regardless — either migrated data or defaults
         let result = versionStore.loadVersionManager()
         versionManager = result.manager
@@ -300,6 +370,11 @@ final class MainDashboardViewModel: ObservableObject {
         }
 
         patchFeedback = nil
+
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.launchGame() }
+            return
+        }
 
         // Check for version mismatch if using vanilla tweaks
         if currentVersion.settings.enableVanillaTweaks {
@@ -575,7 +650,7 @@ final class MainDashboardViewModel: ObservableObject {
         let currentVersion = versionManager.currentVersion
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let enabled: Bool
-            if currentVersion != nil {
+            if currentVersion != nil && PrefixBootstrapService.shared.isPrefixReady() {
                 enabled = OptionAsAltService.isOptionAsAltEnabled()
             } else {
                 enabled = OptionAsAltService.isOptionAsAltEnabledFast()
@@ -620,7 +695,7 @@ final class MainDashboardViewModel: ObservableObject {
         let currentVersion = versionManager.currentVersion
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let enabled: Bool
-            if currentVersion != nil {
+            if currentVersion != nil && PrefixBootstrapService.shared.isPrefixReady() {
                 enabled = RetinaModeService.isRetinaModeEnabled()
             } else {
                 enabled = RetinaModeService.isRetinaModeEnabledFast()
