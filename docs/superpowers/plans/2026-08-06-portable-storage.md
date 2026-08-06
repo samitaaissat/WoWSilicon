@@ -2431,3 +2431,4 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 8. `~/.wine` canary: create `~/.wine/canary.txt`, run every launch/patch/toggle/VC++ flow, verify the file and the directory's mtime are untouched.
 9. Real TurtleSilicon-era Application Support data: prompt → migration → portable import chain preserves game paths.
 10. Two app copies (e.g. /Applications and a USB stick) used alternately: independent Data folders, no cross-talk.
+11. Run from USB after a DMG first-run; force-quit during adoption; relaunch — adoption must recover (staging cleanup) and complete.

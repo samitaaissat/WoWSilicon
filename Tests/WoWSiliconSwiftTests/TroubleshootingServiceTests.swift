@@ -90,6 +90,29 @@ final class TroubleshootingServiceTests: XCTestCase {
         }
     }
 
+    func testDeleteDedicatedPrefixThrowsWhenWineIsRunning() throws {
+        let root = try makeTemporaryDirectory()
+        let prefix = root.appendingPathComponent("prefix", isDirectory: true)
+        try FileManager.default.createDirectory(at: prefix, withIntermediateDirectories: true)
+
+        XCTAssertThrowsError(try TroubleshootingService.deleteDedicatedPrefix(
+            prefixURL: prefix, isPrefixBusy: { true })) { error in
+            XCTAssertEqual(error as? TroubleshootingServiceError, .operationFailed("Wine is still running. Quit the game (or use Force Quit) and try again."))
+        }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: prefix.path), "source untouched while busy")
+    }
+
+    func testDeleteDedicatedPrefixDeletesWhenNotBusy() throws {
+        let root = try makeTemporaryDirectory()
+        let prefix = root.appendingPathComponent("prefix", isDirectory: true)
+        try FileManager.default.createDirectory(at: prefix, withIntermediateDirectories: true)
+
+        let deleted = try TroubleshootingService.deleteDedicatedPrefix(prefixURL: prefix, isPrefixBusy: { false })
+
+        XCTAssertEqual(deleted, [prefix.path])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: prefix.path))
+    }
+
     func testDeleteLegacyPrefixesTargetsHomeAndGameDotWine() throws {
         let home = try makeTemporaryDirectory()
         let game = try makeTemporaryDirectory()
@@ -120,6 +143,23 @@ final class TroubleshootingServiceTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: storage.dataRootURL.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: fallbackDir.path))
         XCTAssertEqual(Set(deleted), Set([storage.dataRootURL.path, fallbackDir.path]))
+    }
+
+    func testResetStorageThrowsWhenWineIsRunning() throws {
+        let parent = try makeTemporaryDirectory()
+        let fallback = try makeTemporaryDirectory()
+        let storage = PortableStorage(
+            bundleURL: parent.appendingPathComponent("WoWSilicon.app", isDirectory: true),
+            fallbackSupportRoot: fallback
+        )
+        let fallbackDir = storage.legacySupportDirectory
+        try FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
+        try "x".write(to: fallbackDir.appendingPathComponent("prefs.json"), atomically: true, encoding: .utf8)
+
+        XCTAssertThrowsError(try TroubleshootingService.resetStorage(storage: storage, isPrefixBusy: { true })) { error in
+            XCTAssertEqual(error as? TroubleshootingServiceError, .operationFailed("Wine is still running. Quit the game (or use Force Quit) and try again."))
+        }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fallbackDir.path), "source untouched while busy")
     }
 
     func testDebugLogContainsStorageBlock() throws {

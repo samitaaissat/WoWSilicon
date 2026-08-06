@@ -103,6 +103,28 @@ final class PortableStorageAdoptionTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: storage.prefixURL.path))
     }
 
+    func testAdoptionCleansUpLeftoverStagingDirectoryAndCompletes() throws {
+        let storage = try makePortableStorage()
+        let fallbackPrefix = storage.legacySupportDirectory.appendingPathComponent("prefix", isDirectory: true)
+        try makeFakePrefix(at: fallbackPrefix, cSymlinkTarget: "../drive_c")
+
+        // Simulate a staging dir left behind by an adoption that crashed
+        // mid-copy on a previous launch.
+        let parentDir = storage.prefixURL.deletingLastPathComponent()
+        let leftoverStaging = parentDir.appendingPathComponent("prefix.adopting-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: leftoverStaging, withIntermediateDirectories: true)
+        try "STALE".write(to: leftoverStaging.appendingPathComponent("marker"), atomically: true, encoding: .utf8)
+
+        storage.adoptFallbackPrefixIfNeeded(isPrefixBusy: { false })
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: leftoverStaging.path), "leftover staging dir cleaned up")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fallbackPrefix.path), "moved, not copied")
+        XCTAssertEqual(
+            try String(contentsOf: storage.prefixURL.appendingPathComponent("user.reg"), encoding: .utf8),
+            "REG"
+        )
+    }
+
     func testHomeDotWineCanaryIsNeverTouched() throws {
         let storage = try makePortableStorage()
         // A ".wine" directory anywhere near the roots must never be read or moved.
