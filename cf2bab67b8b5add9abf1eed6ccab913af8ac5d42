@@ -1,0 +1,84 @@
+{
+    "version": "0.1.0",
+    "id": "a0329c4b-4adf-43cc-badc-6281023b221b",
+    "timestamp": "2026-08-06T20:13:39.566953Z",
+    "vcs": {
+        "type": "git",
+        "revision": "cf2bab67b8b5add9abf1eed6ccab913af8ac5d42",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PortableStorage.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:ae41eae403352893a16503805409f044abb31fa9",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 85
+                        },
+                        {
+                            "start_line": 89,
+                            "end_line": 94
+                        },
+                        {
+                            "start_line": 97,
+                            "end_line": 119
+                        },
+                        {
+                            "start_line": 124,
+                            "end_line": 124
+                        },
+                        {
+                            "start_line": 126,
+                            "end_line": 161
+                        },
+                        {
+                            "start_line": 164,
+                            "end_line": 174
+                        },
+                        {
+                            "start_line": 178,
+                            "end_line": 206
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/PortableStorageResolverTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:ae41eae403352893a16503805409f044abb31fa9",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 26
+                        },
+                        {
+                            "start_line": 29,
+                            "end_line": 167
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
