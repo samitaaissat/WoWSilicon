@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## Project overview
 
-WoWSilicon is a native macOS launcher for older World of Warcraft clients (Vanilla 1.12.1, The Burning Crusade 2.4.3, Wrath of the Lich King 3.3.5a) on Apple Silicon Macs. It orchestrates a bundled, pre-patched Wine runtime (built from `WineAndAqua/wine`, branch `wine-11.0-macos`, shipped inside the app at `Contents/SharedSupport/wine/`), RosettaX87, DX9 translation (d9vk), and runtime patching so 2006–2010 era clients run efficiently on modern macOS — no CrossOver install required. It also ships an addon manager (Git URL installs, bulk import/export), a mod manager for DLL-style mods, a realmlist editor, graphics options, and Sparkle-based auto-updates.
+WoWSilicon is a native macOS launcher for older World of Warcraft clients (Vanilla 1.12.1, The Burning Crusade 2.4.3, Wrath of the Lich King 3.3.5a) on Apple Silicon Macs. It orchestrates a bundled, pre-patched Wine runtime (built from `WineAndAqua/wine`, branch `wine-11.14-macos`, shipped inside the app at `Contents/SharedSupport/wine/`), RosettaX87, DX9 translation (d9vk), and runtime patching so 2006–2010 era clients run efficiently on modern macOS — no CrossOver install required. It also ships an addon manager (Git URL installs, bulk import/export), a mod manager for DLL-style mods, a realmlist editor, graphics options, and Sparkle-based auto-updates.
 
 The app is written in Swift 6 with SwiftUI + AppKit. It is Apple Silicon only (arm64).
 

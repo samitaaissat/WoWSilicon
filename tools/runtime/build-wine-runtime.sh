@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Builds the WoWSilicon bundled Wine runtime from WineAndAqua/wine
-# (branch wine-11.0-macos, pinned commit) on x86_64 (macos-15-intel runner,
+# (branch wine-11.14-macos, pinned commit) on x86_64 (macos-15-intel runner,
 # or an Apple Silicon Mac via `arch -x86_64 bash tools/runtime/build-wine-runtime.sh`).
 #
 # Stages wine/{bin,lib,share,VERSION}, ad-hoc signs every Mach-O (plain
@@ -20,9 +20,9 @@ set -euo pipefail
 
 RUNTIME_BUILD_NUMBER="${RUNTIME_BUILD_NUMBER:-1}"
 WINE_REPO="https://github.com/WineAndAqua/wine"
-WINE_BRANCH="wine-11.0-macos"
-# Pinned via: git ls-remote https://github.com/WineAndAqua/wine refs/heads/wine-11.0-macos
-WINE_COMMIT="ec3ba59b8d717a2115384f5999c7b1a984bee3bb"
+WINE_BRANCH="wine-11.14-macos"
+# Pinned via: git ls-remote https://github.com/WineAndAqua/wine refs/heads/wine-11.14-macos
+WINE_COMMIT="e7c066a82add8a06884e30d9893f978d072f3354"
 
 if [[ ! "$WINE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   echo "error: WINE_COMMIT is not pinned to a 40-char commit SHA. Edit this script first." >&2
