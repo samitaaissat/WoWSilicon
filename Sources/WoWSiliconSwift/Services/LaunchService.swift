@@ -518,15 +518,26 @@ final class LaunchService: @unchecked Sendable {
             p.waitUntilExit()
         }
 
-        // Wine processes run with their Windows path as the process name (e.g. "Z:\Volumes\...\WoW.exe").
-        // pkill -f matches against the full argument string, so matching ".exe" catches them all.
-        pkill(["-9", "-f", ".exe"])
+        let runtime = WineRuntime.shared
 
-        // Kill the bundled runtime's wine and wineserver by path
-        pkill(["-9", "-f", WineRuntime.shared.wineBinaryURL.path])
-        pkill(["-9", "-f", WineRuntime.shared.wineserverBinaryURL.path])
+        // Ask our wineserver to shut down cleanly first so it flushes the
+        // registry — SIGKILL discards up to 30 s of unflushed changes.
+        var environment = ProcessInfo.processInfo.environment
+        environment["WINEPREFIX"] = PortableStorage.shared.prefixURL.path
+        if FileManager.default.isExecutableFile(atPath: runtime.wineserverBinaryURL.path) {
+            _ = try? ProcessRunner.run(
+                executablePath: runtime.wineserverBinaryURL.path,
+                arguments: ["-k"],
+                environment: environment,
+                timeout: 5
+            )
+            Thread.sleep(forTimeInterval: 5)
+        }
 
-        // Kill rosettax87 instances
+        // Escalate, scoped to OUR runtime only. The old `pkill -9 -f ".exe"`
+        // matched every Wine app on the machine and is deliberately gone.
+        pkill(["-9", "-f", runtime.wineBinaryURL.path])
+        pkill(["-9", "-f", runtime.wineserverBinaryURL.path])
         pkill(["-9", "-f", "rosettax87"])
     }
 }
