@@ -619,6 +619,10 @@ final class MainDashboardViewModel: ObservableObject {
     private func setOptionAsAlt(_ enabled: Bool) {
         guard !isOptionAsAltBusy else { return }
         guard versionManager.currentVersion != nil else { return }
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.setOptionAsAlt(enabled) }
+            return
+        }
 
         isOptionAsAltBusy = true
         optionAsAltStatus = .inProgress(enabled ? "Enabling…" : "Disabling…")
@@ -666,6 +670,10 @@ final class MainDashboardViewModel: ObservableObject {
     private func setRetinaMode(_ enabled: Bool) {
         guard !isRetinaModeBusy else { return }
         guard versionManager.currentVersion != nil else { return }
+        guard PrefixBootstrapService.shared.isPrefixReady() else {
+            ensurePrefixReady { [weak self] in self?.setRetinaMode(enabled) }
+            return
+        }
 
         isRetinaModeBusy = true
         retinaModeStatus = .inProgress(enabled ? "Enabling…" : "Disabling…")
