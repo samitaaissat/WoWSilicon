@@ -4,14 +4,14 @@ enum MigrationService {
     static let legacyDirectoryName = "TurtleSilicon"
     static let currentDirectoryName = "WoWSilicon"
 
-    static func legacyDirectoryExists() -> Bool {
-        guard let support = applicationSupportURL() else { return false }
+    static func legacyDirectoryExists(supportRoot: URL? = nil) -> Bool {
+        guard let support = supportRoot ?? applicationSupportURL() else { return false }
         let legacy = support.appendingPathComponent(legacyDirectoryName, isDirectory: true)
         return FileManager.default.fileExists(atPath: legacy.path)
     }
 
-    static func migrate() throws {
-        guard let support = applicationSupportURL() else {
+    static func migrate(supportRoot: URL? = nil) throws {
+        guard let support = supportRoot ?? applicationSupportURL() else {
             throw MigrationError.unableToLocateSupportDirectory
         }
         let fm = FileManager.default
