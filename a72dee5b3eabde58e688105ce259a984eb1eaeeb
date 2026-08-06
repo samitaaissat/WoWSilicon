@@ -1,0 +1,200 @@
+{
+    "version": "0.1.0",
+    "id": "e06421e7-378f-4123-91b8-29ce40bd7773",
+    "timestamp": "2026-08-06T21:55:56.771023Z",
+    "vcs": {
+        "type": "git",
+        "revision": "a72dee5b3eabde58e688105ce259a984eb1eaeeb",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PortableStorage.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:afb21b25debde80c9b3b983aaabfaff3ac046d9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 144,
+                            "end_line": 147
+                        },
+                        {
+                            "start_line": 162,
+                            "end_line": 166
+                        },
+                        {
+                            "start_line": 176,
+                            "end_line": 182
+                        },
+                        {
+                            "start_line": 184,
+                            "end_line": 186
+                        },
+                        {
+                            "start_line": 189,
+                            "end_line": 189
+                        },
+                        {
+                            "start_line": 192,
+                            "end_line": 192
+                        },
+                        {
+                            "start_line": 204,
+                            "end_line": 209
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/Services/TroubleshootingService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:afb21b25debde80c9b3b983aaabfaff3ac046d9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 61,
+                            "end_line": 66
+                        },
+                        {
+                            "start_line": 165,
+                            "end_line": 170
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/ViewModels/MainDashboardViewModel.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:afb21b25debde80c9b3b983aaabfaff3ac046d9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 64,
+                            "end_line": 67
+                        },
+                        {
+                            "start_line": 174,
+                            "end_line": 176
+                        },
+                        {
+                            "start_line": 224,
+                            "end_line": 226
+                        },
+                        {
+                            "start_line": 261,
+                            "end_line": 270
+                        },
+                        {
+                            "start_line": 273,
+                            "end_line": 273
+                        },
+                        {
+                            "start_line": 293,
+                            "end_line": 294
+                        },
+                        {
+                            "start_line": 296,
+                            "end_line": 296
+                        },
+                        {
+                            "start_line": 307,
+                            "end_line": 310
+                        },
+                        {
+                            "start_line": 316,
+                            "end_line": 319
+                        },
+                        {
+                            "start_line": 578,
+                            "end_line": 580
+                        },
+                        {
+                            "start_line": 889,
+                            "end_line": 891
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/PortableStorageAdoptionTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:afb21b25debde80c9b3b983aaabfaff3ac046d9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 106,
+                            "end_line": 109
+                        },
+                        {
+                            "start_line": 111,
+                            "end_line": 124
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/TroubleshootingServiceTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:afb21b25debde80c9b3b983aaabfaff3ac046d9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 93,
+                            "end_line": 113
+                        },
+                        {
+                            "start_line": 148,
+                            "end_line": 162
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/superpowers/plans/2026-08-06-portable-storage.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:afb21b25debde80c9b3b983aaabfaff3ac046d9b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 2434,
+                            "end_line": 2434
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
