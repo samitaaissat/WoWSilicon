@@ -242,7 +242,7 @@ final class LaunchService: @unchecked Sendable {
             envParts.append("ROSETTA_X87_PATH=\(doubleQuote(rosettaLoaderPath))")
         }
         if !custom.isEmpty {
-            envParts.append(custom)
+            envParts.append(quoteCustomEnvironment(custom))
         }
         envParts.append(baseEnv)
 
@@ -253,8 +253,31 @@ final class LaunchService: @unchecked Sendable {
         return command
     }
 
+    /// Quotes the VALUE of each `KEY=VALUE` token so values with spaces or shell
+    /// metacharacters cannot inject extra commands. Tokens without `=` pass through.
+    private static func quoteCustomEnvironment(_ flattened: String) -> String {
+        flattened
+            .split(whereSeparator: { $0 == " " || $0 == "\t" })
+            .map { token in
+                guard let separator = token.firstIndex(of: "=") else {
+                    return String(token)
+                }
+                let key = token[token.startIndex..<separator]
+                let value = token[token.index(after: separator)...]
+                return "\(key)=\(doubleQuote(String(value)))"
+            }
+            .joined(separator: " ")
+    }
+
     private static func doubleQuote(_ value: String) -> String {
-        "\"" + value.replacingOccurrences(of: "\"", with: "\\\"") + "\""
+        // Backslashes must be escaped first, then the other characters that stay
+        // active inside a double-quoted sh string: `"`, `$`, and backticks.
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "$", with: "\\$")
+            .replacingOccurrences(of: "`", with: "\\`")
+        return "\"" + escaped + "\""
     }
 
     func launchInstaller(installerURL: URL, version: GameVersion, completion: @escaping @Sendable (Result<Void, LaunchServiceError>) -> Void) {

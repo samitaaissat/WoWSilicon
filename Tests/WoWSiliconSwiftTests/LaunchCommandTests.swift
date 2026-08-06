@@ -45,7 +45,37 @@ final class LaunchCommandTests: XCTestCase {
             settings: VersionSettings(environmentVariables: "A=1\nB=2")
         )
 
-        XCTAssertTrue(command.contains("ROSETTA_X87_PATH=\"\(loaderPath)\" A=1 B=2 WINEDLLOVERRIDES="))
+        XCTAssertTrue(command.contains("ROSETTA_X87_PATH=\"\(loaderPath)\" A=\"1\" B=\"2\" WINEDLLOVERRIDES="))
+    }
+
+    func testShellMetacharactersInPathsAreEmittedLiterally() {
+        let sneakyPath = "/Games/$(rm -rf x)/WoW`ev`il\\"
+        let command = LaunchService.makeShellCommand(
+            gamePath: sneakyPath,
+            executablePath: sneakyPath + "/WoW.exe",
+            wineBinaryPath: winePath,
+            rosettaLoaderPath: loaderPath,
+            settings: VersionSettings()
+        )
+
+        // `$`, backticks, and trailing backslashes must be backslash-escaped inside
+        // the double-quoted path so the shell cannot expand or execute them.
+        let expectedQuotedPath = "\"/Games/\\$(rm -rf x)/WoW\\`ev\\`il\\\\\""
+        XCTAssertTrue(command.hasPrefix("cd \(expectedQuotedPath) && "))
+        XCTAssertTrue(command.contains("\(expectedQuotedPath.dropLast())/WoW.exe\""))
+        XCTAssertFalse(command.contains("cd \"/Games/$(rm -rf x)"))
+    }
+
+    func testCustomEnvironmentVariableValuesAreQuoted() {
+        let command = LaunchService.makeShellCommand(
+            gamePath: "/Games/WoW",
+            executablePath: "/Games/WoW/WoW.exe",
+            wineBinaryPath: winePath,
+            rosettaLoaderPath: loaderPath,
+            settings: VersionSettings(environmentVariables: "WINEPREFIX=/tmp/$(whoami) FLAG")
+        )
+
+        XCTAssertTrue(command.contains("WINEPREFIX=\"/tmp/\\$(whoami)\" FLAG "))
     }
 
     func testMetalHudTogglesEnvironmentValue() {
