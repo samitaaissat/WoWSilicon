@@ -24,7 +24,20 @@ SWIFT_ENV := SWIFT_MODULECACHE_PATH="$(BUILD_DIR)/swift-module-cache" CLANG_MODU
 SWIFT_BUILD := $(SWIFT_ENV) swift build --arch arm64 --disable-sandbox --build-path "$(BUILD_DIR)" --cache-path "$(BUILD_DIR)/spm-cache" --manifest-cache none
 RESOURCE_BUNDLE := $(BUILD_DIR)/arm64-apple-macosx/release/WoWSilicon-swift_WoWSiliconSwift.bundle
 
-.PHONY: all build debug run bundle dmg appcast clean app_icon
+# ---------------------------------------------------------------------------
+# Bundled Wine runtime (built by .github/workflows/runtime.yml, published as
+# GitHub release runtime-v$(RUNTIME_VERSION); tarball layout: wine/{bin,lib,share,VERSION}).
+# The cache lives under $(BUILD_DIR), so `make clean` removes it and the next
+# `make bundle` (or `make run`) re-downloads the ~150 MB tarball — accepted;
+# CI restores $(RUNTIME_CACHE) via actions/cache keyed on runtime-v$(RUNTIME_VERSION)
+# (bump the key in .github/workflows/release.yml when bumping RUNTIME_VERSION).
+RUNTIME_VERSION ?= 1
+RUNTIME_ASSET := wowsilicon-wine-$(RUNTIME_VERSION)-osx64.tar.xz
+RUNTIME_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(RUNTIME_ASSET)
+RUNTIME_SHA256 ?= 1ee361ac913301cb3a771f91f159fcc088be7edb2bfd16368feba95bcf37dfed
+RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
+
+.PHONY: all build debug run bundle fetch-runtime dmg appcast clean app_icon
 
 all: bundle
 
@@ -44,7 +57,7 @@ run: bundle
 	@echo "Launching $(APP_NAME).app..."
 	open "$(APP_BUNDLE)"
 
-bundle: build
+bundle: build fetch-runtime
 	@$(MAKE) app_icon
 	@echo "Staging $(APP_NAME).app..."
 	@rm -rf "$(APP_BUNDLE)"
@@ -64,11 +77,32 @@ bundle: build
 		rsync -a Sources/WoWSiliconSwift/Resources/ "$(APP_BUNDLE)/Contents/Resources/"; \
 	fi
 	@cp "$(APP_ICON)" "$(APP_BUNDLE)/Contents/Resources/turtle.icns"
+	@echo "Bundling Wine runtime v$(RUNTIME_VERSION)..."
+	@mkdir -p "$(APP_BUNDLE)/Contents/SharedSupport"
+	@cp -R "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine" "$(APP_BUNDLE)/Contents/SharedSupport/wine"
 	@if [ -n "$(CODESIGN_IDENTITY)" ]; then \
 		echo "Signing $(APP_BUNDLE) with identity $(CODESIGN_IDENTITY)..."; \
 		codesign --force --deep --sign "$(CODESIGN_IDENTITY)" "$(APP_BUNDLE)"; \
 	fi
 	@echo "Bundle created at $(APP_BUNDLE)"
+
+fetch-runtime:
+	@if [ -x "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/bin/wine" ] \
+		&& [ "$$(cat "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/.sha256" 2>/dev/null)" = "$(RUNTIME_SHA256)" ]; then \
+		echo "Wine runtime v$(RUNTIME_VERSION) already cached at $(RUNTIME_CACHE)/$(RUNTIME_VERSION)"; \
+	else \
+		set -e; \
+		echo "Fetching Wine runtime v$(RUNTIME_VERSION) from $(RUNTIME_URL)..."; \
+		rm -rf "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)"; \
+		mkdir -p "$(RUNTIME_CACHE)"; \
+		curl -fL --retry 3 -o "$(RUNTIME_CACHE)/$(RUNTIME_ASSET)" "$(RUNTIME_URL)"; \
+		echo "$(RUNTIME_SHA256)  $(RUNTIME_CACHE)/$(RUNTIME_ASSET)" | shasum -a 256 -c -; \
+		mkdir -p "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)"; \
+		tar -xJf "$(RUNTIME_CACHE)/$(RUNTIME_ASSET)" -C "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)"; \
+		test -x "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/bin/wine"; \
+		printf '%s' "$(RUNTIME_SHA256)" > "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/.sha256"; \
+		echo "Wine runtime v$(RUNTIME_VERSION) extracted to $(RUNTIME_CACHE)/$(RUNTIME_VERSION)"; \
+	fi
 
 dmg: bundle
 	@echo "Creating $(DMG_PATH)..."
