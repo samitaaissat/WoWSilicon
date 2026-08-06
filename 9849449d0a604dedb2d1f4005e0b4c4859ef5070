@@ -1,0 +1,84 @@
+{
+    "version": "0.1.0",
+    "id": "d96daf27-463d-449b-8ca0-fac0a101439f",
+    "timestamp": "2026-08-06T20:48:20.748366Z",
+    "vcs": {
+        "type": "git",
+        "revision": "9849449d0a604dedb2d1f4005e0b4c4859ef5070",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PrefixBootstrapService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:e28864e9c1bf4e4e10ba4ad8fb4bfac24c1a7d7b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 18
+                        },
+                        {
+                            "start_line": 23,
+                            "end_line": 37
+                        },
+                        {
+                            "start_line": 39,
+                            "end_line": 64
+                        },
+                        {
+                            "start_line": 67,
+                            "end_line": 103
+                        },
+                        {
+                            "start_line": 105,
+                            "end_line": 149
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/PrefixBootstrapServiceTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:e28864e9c1bf4e4e10ba4ad8fb4bfac24c1a7d7b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 20
+                        },
+                        {
+                            "start_line": 23,
+                            "end_line": 43
+                        },
+                        {
+                            "start_line": 47,
+                            "end_line": 56
+                        },
+                        {
+                            "start_line": 59,
+                            "end_line": 81
+                        },
+                        {
+                            "start_line": 84,
+                            "end_line": 160
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
