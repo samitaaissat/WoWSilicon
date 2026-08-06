@@ -14,7 +14,7 @@ final class VersionStoreTests: XCTestCase {
 
     func testSaveAndLoadRoundTripsCustomProfileAndDefaults() throws {
         let supportURL = try makeTemporaryDirectory()
-        let store = VersionStore(supportDirectory: supportURL)
+        let store = VersionStore(configDirectory: supportURL)
         let custom = GameVersion(
             id: "custom",
             displayName: "Custom",
@@ -46,11 +46,10 @@ final class VersionStoreTests: XCTestCase {
 
     func testLoadFallsBackToDefaultsWhenVersionsFileIsInvalid() throws {
         let supportURL = try makeTemporaryDirectory()
-        let versionsURL = supportURL.appendingPathComponent("WoWSilicon/versions.json")
-        try FileManager.default.createDirectory(at: versionsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let versionsURL = supportURL.appendingPathComponent("versions.json")
         try "{ not json".write(to: versionsURL, atomically: true, encoding: .utf8)
 
-        let result = VersionStore(supportDirectory: supportURL).loadVersionManager()
+        let result = VersionStore(configDirectory: supportURL).loadVersionManager()
 
         XCTAssertTrue(result.decodeFailed)
         XCTAssertEqual(result.manager.currentVersionID, VersionManager.defaultCurrentVersionID)
@@ -60,8 +59,7 @@ final class VersionStoreTests: XCTestCase {
 
     func testLoadMergesLegacyVersionManagerWhenNewStoreHasNoPaths() throws {
         let supportURL = try makeTemporaryDirectory()
-        let legacyURL = supportURL.appendingPathComponent("WoWSilicon/version_manager.json")
-        try FileManager.default.createDirectory(at: legacyURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let legacyURL = supportURL.appendingPathComponent("version_manager.json")
         try """
         {
           "current_version_id": "wrathsilicon",
@@ -80,7 +78,7 @@ final class VersionStoreTests: XCTestCase {
         }
         """.write(to: legacyURL, atomically: true, encoding: .utf8)
 
-        let result = VersionStore(supportDirectory: supportURL).loadVersionManager()
+        let result = VersionStore(configDirectory: supportURL).loadVersionManager()
         let wrath = try XCTUnwrap(result.manager.versions["wrathsilicon"])
 
         XCTAssertEqual(result.manager.currentVersionID, "wrathsilicon")
