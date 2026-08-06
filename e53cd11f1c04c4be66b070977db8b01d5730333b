@@ -1,0 +1,56 @@
+{
+    "version": "0.1.0",
+    "id": "da9d9c93-6bc4-470b-8f35-39fb357bda7d",
+    "timestamp": "2026-08-06T20:37:20.592866Z",
+    "vcs": {
+        "type": "git",
+        "revision": "e53cd11f1c04c4be66b070977db8b01d5730333b",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/WineRegistrySupport.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:d038480e1170e5b94cb096e74f3818ebb1d74ca7",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 9,
+                            "end_line": 13
+                        },
+                        {
+                            "start_line": 16,
+                            "end_line": 17
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/WineRegistrySupportTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:d038480e1170e5b94cb096e74f3818ebb1d74ca7",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 5,
+                            "end_line": 37
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
