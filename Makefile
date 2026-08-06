@@ -79,7 +79,11 @@ bundle: build fetch-runtime
 	@cp "$(APP_ICON)" "$(APP_BUNDLE)/Contents/Resources/turtle.icns"
 	@echo "Bundling Wine runtime v$(RUNTIME_VERSION)..."
 	@mkdir -p "$(APP_BUNDLE)/Contents/SharedSupport"
-	@cp -R "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine" "$(APP_BUNDLE)/Contents/SharedSupport/wine"
+	@# ditto (not cp -R): staging must preserve the tarball's file mtimes.
+	@# wine stamps prefixes with wine.inf's mtime and re-runs the full prefix
+	@# update on any mismatch — cp -R restamps mtimes at build time, which made
+	@# every app build (even of the same runtime) force a prefix refresh.
+	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine" "$(APP_BUNDLE)/Contents/SharedSupport/wine"
 	@if [ -n "$(CODESIGN_IDENTITY)" ]; then \
 		echo "Signing $(APP_BUNDLE) with identity $(CODESIGN_IDENTITY)..."; \
 		codesign --force --deep --sign "$(CODESIGN_IDENTITY)" "$(APP_BUNDLE)"; \
