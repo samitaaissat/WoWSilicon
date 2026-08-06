@@ -1,9 +1,15 @@
 import Foundation
 
 struct UserPrefsStore {
-    private let fileManager = FileManager.default
+    private let fileManager: FileManager
+    private let configDirectory: URL?
     private let directoryName = "WoWSilicon"
     private let fileName = "prefs.json"
+
+    init(fileManager: FileManager = .default, configDirectory: URL? = nil) {
+        self.fileManager = fileManager
+        self.configDirectory = configDirectory
+    }
 
     func load() -> UserPrefs {
         guard let prefsURL = prefsFileURL(),
@@ -43,6 +49,9 @@ struct UserPrefsStore {
     }
 
     private func prefsFileURL() -> URL? {
+        if let configDirectory {
+            return configDirectory.appendingPathComponent(fileName, isDirectory: false)
+        }
         guard let supportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }
