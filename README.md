@@ -80,7 +80,7 @@ WoWSilicon.app ships the following third-party components:
 
 - **Wine** (LGPL-2.1-or-later) — the bundled, pre-patched runtime is built from
   [WineAndAqua/wine](https://github.com/WineAndAqua/wine) (branch `wine-11.0-macos`)
-  at the commit pinned in [`.github/workflows/runtime.yml`](.github/workflows/runtime.yml).
+  at the commit pinned in [`tools/runtime/build-wine-runtime.sh`](tools/runtime/build-wine-runtime.sh).
   The app bundles the `runtime-v*` release selected by `RUNTIME_VERSION` in the
   [`Makefile`](Makefile); Wine's LICENSE files ship inside
   `WoWSilicon.app/Contents/SharedSupport/wine/`.
