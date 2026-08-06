@@ -1,0 +1,108 @@
+{
+    "version": "0.1.0",
+    "id": "9112fa07-2ad4-4338-a22a-9403ccaf9e9d",
+    "timestamp": "2026-08-06T20:41:10.748169Z",
+    "vcs": {
+        "type": "git",
+        "revision": "6d19d40b414bf6c2170646f9f2bf3f012dc22b5a",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/LaunchService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:00a3322dde609a65e75c692a0d4a5c6e272b3bd9",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 129,
+                            "end_line": 129
+                        },
+                        {
+                            "start_line": 231,
+                            "end_line": 231
+                        },
+                        {
+                            "start_line": 250,
+                            "end_line": 253
+                        },
+                        {
+                            "start_line": 305,
+                            "end_line": 305
+                        },
+                        {
+                            "start_line": 361,
+                            "end_line": 361
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/LaunchCommandTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:00a3322dde609a65e75c692a0d4a5c6e272b3bd9",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 7,
+                            "end_line": 7
+                        },
+                        {
+                            "start_line": 15,
+                            "end_line": 15
+                        },
+                        {
+                            "start_line": 24,
+                            "end_line": 24
+                        },
+                        {
+                            "start_line": 35,
+                            "end_line": 35
+                        },
+                        {
+                            "start_line": 49,
+                            "end_line": 49
+                        },
+                        {
+                            "start_line": 63,
+                            "end_line": 63
+                        },
+                        {
+                            "start_line": 81,
+                            "end_line": 82
+                        },
+                        {
+                            "start_line": 85,
+                            "end_line": 85
+                        },
+                        {
+                            "start_line": 94,
+                            "end_line": 94
+                        },
+                        {
+                            "start_line": 108,
+                            "end_line": 108
+                        },
+                        {
+                            "start_line": 116,
+                            "end_line": 144
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
