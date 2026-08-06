@@ -1,0 +1,38 @@
+{
+    "version": "0.1.0",
+    "id": "4470f254-2338-48c8-aa6b-544e6c4869d6",
+    "timestamp": "2026-08-06T19:57:24.619754Z",
+    "vcs": {
+        "type": "git",
+        "revision": "03f9bf44bb1ddc733de07c56bfbc7f0072a76d2a",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "docs/superpowers/specs/2026-08-06-portable-storage-design.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:f4fd2ce40b095afa02cfbf829d5ff0b3845e915f",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 347
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
