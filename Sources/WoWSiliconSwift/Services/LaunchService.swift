@@ -126,6 +126,7 @@ final class LaunchService: @unchecked Sendable {
             executablePath: wowExecutableURL.path,
             wineBinaryPath: wineBinaryURL.path,
             rosettaLoaderPath: rosettaLoaderURL.path,
+            winePrefixPath: PortableStorage.shared.prefixURL.path,
             settings: version.settings
         )
 
@@ -227,6 +228,7 @@ final class LaunchService: @unchecked Sendable {
         executablePath: String,
         wineBinaryPath: String,
         rosettaLoaderPath: String?,
+        winePrefixPath: String,
         settings: VersionSettings,
         extraArguments: [String] = []
     ) -> String {
@@ -245,6 +247,10 @@ final class LaunchService: @unchecked Sendable {
             envParts.append(quoteCustomEnvironment(custom))
         }
         envParts.append(baseEnv)
+        // Pinned LAST: sh applies the last assignment of a duplicated variable,
+        // so a WINEPREFIX typed into the custom env field can never win. Both
+        // the game and every registry/status operation must share one prefix.
+        envParts.append("WINEPREFIX=\(doubleQuote(winePrefixPath))")
 
         var command = "cd \(doubleQuote(gamePath)) && \(envParts.joined(separator: " ")) \(doubleQuote(wineBinaryPath)) \(doubleQuote(executablePath))"
         for argument in extraArguments {
@@ -296,6 +302,7 @@ final class LaunchService: @unchecked Sendable {
             executablePath: installerURL.path,
             wineBinaryPath: wineBinaryURL.path,
             rosettaLoaderPath: rosettaLoaderPath,
+            winePrefixPath: PortableStorage.shared.prefixURL.path,
             settings: version.settings
         )
 
@@ -351,6 +358,7 @@ final class LaunchService: @unchecked Sendable {
             executablePath: exeURL.path,
             wineBinaryPath: wineBinaryURL.path,
             rosettaLoaderPath: rosettaLoaderURL.path,
+            winePrefixPath: PortableStorage.shared.prefixURL.path,
             settings: version.settings,
             extraArguments: ["--disable-gpu", "--in-process-gpu"]
         )
