@@ -26,8 +26,9 @@ rm -rf "$WORK"
 mkdir -p "$WORK" "$DIST" "$STAGE/d9mt"/{winemetal,d9mtmetal}/{i386-windows,x86_64-windows,x86_64-unix} "$STAGE/d9mt/LICENSES"
 
 # --- prereqs ---
-for tool in i686-w64-mingw32-g++ i686-w64-mingw32-dlltool x86_64-w64-mingw32-dlltool \
-            glslang python3 curl git; do
+for tool in i686-w64-mingw32-g++ i686-w64-mingw32-gcc x86_64-w64-mingw32-gcc \
+            i686-w64-mingw32-dlltool x86_64-w64-mingw32-dlltool i686-w64-mingw32-objdump \
+            clang glslang python3 curl git tar shasum file dd; do
   command -v "$tool" >/dev/null || { echo "MISSING prerequisite: $tool (brew install mingw-w64 glslang)"; exit 1; }
 done
 
@@ -97,10 +98,13 @@ BOTTLE="$BOTTLE" CX="$FAKE_CX" HOME="$FAKE_HOME" \
 
 cp "$WORK/d9mt/build/d3d9fe.dll" "$STAGE/d9mt/d3d9.dll"
 
-# Harvest d9mtmetal artifacts (paths per tools/build-d9mtmetal.sh build outputs)
-cp "$WORK/d9mt/build/d9mtmetal/i386/d9mtmetal.dll"   "$STAGE/d9mt/d9mtmetal/i386-windows/d9mtmetal.dll"
-cp "$WORK/d9mt/build/d9mtmetal/x86_64/d9mtmetal.dll" "$STAGE/d9mt/d9mtmetal/x86_64-windows/d9mtmetal.dll"
-cp "$WORK/d9mt/build/d9mtmetal/d9mtmetal.so"         "$STAGE/d9mt/d9mtmetal/x86_64-unix/d9mtmetal.so"
+# Harvest d9mtmetal artifacts (paths per tools/build-d9mtmetal.sh build outputs).
+# IMPORTANT: stage the d9mtmetal32/64.dll COPIES, not the per-arch originals —
+# make-builtin.py writes the "Wine builtin DLL" marker (offset 0x40) only into
+# those copies, and wine skips unmarked builtins (no unixlib pairing).
+cp "$WORK/d9mt/build/d9mtmetal/d9mtmetal32.dll" "$STAGE/d9mt/d9mtmetal/i386-windows/d9mtmetal.dll"
+cp "$WORK/d9mt/build/d9mtmetal/d9mtmetal64.dll" "$STAGE/d9mt/d9mtmetal/x86_64-windows/d9mtmetal.dll"
+cp "$WORK/d9mt/build/d9mtmetal/d9mtmetal.so"    "$STAGE/d9mt/d9mtmetal/x86_64-unix/d9mtmetal.so"
 
 # Sanity: all seven payload files exist
 for f in d3d9.dll \
@@ -109,10 +113,24 @@ for f in d3d9.dll \
   test -s "$STAGE/d9mt/$f" || { echo "MISSING payload file: $f"; exit 1; }
 done
 
-# License notices (d9mt has no top-level LICENSE; keep upstream attributions)
-cp "$WORK/d9mt/README.md" "$STAGE/d9mt/LICENSES/d9mt-README.md" || true
+# Sanity: both staged d9mtmetal PE dlls carry the "Wine builtin DLL" marker
+# (16 bytes at offset 0x40, per tools/make-builtin.py)
+for f in d9mtmetal/i386-windows/d9mtmetal.dll d9mtmetal/x86_64-windows/d9mtmetal.dll; do
+  marker="$(dd if="$STAGE/d9mt/$f" bs=1 skip=64 count=16 2>/dev/null)"
+  [ "$marker" = "Wine builtin DLL" ] || { echo "MISSING wine-builtin marker (offset 0x40): $f"; exit 1; }
+done
+
+# Sanity: d3d9.dll is a 32-bit PE (i686 driver)
+file "$STAGE/d9mt/d3d9.dll" | grep -q "PE32" || { echo "d3d9.dll is not a PE32 binary"; exit 1; }
+
+# License notices (d9mt has no top-level LICENSE; keep upstream attributions).
+# Required: a payload without license notices must fail the build, not ship.
+cp "$WORK/d9mt/README.md" "$STAGE/d9mt/LICENSES/d9mt-README.md"
 curl -fL -o "$STAGE/d9mt/LICENSES/DXMT-LICENSE.txt" \
-  "https://raw.githubusercontent.com/3Shain/dxmt/$DXMT_TAG/LICENSE" || true
+  "https://raw.githubusercontent.com/3Shain/dxmt/$DXMT_TAG/LICENSE"
+for f in LICENSES/d9mt-README.md LICENSES/DXMT-LICENSE.txt; do
+  test -s "$STAGE/d9mt/$f" || { echo "MISSING license file: $f"; exit 1; }
+done
 
 tar -czf "$DIST/d9mt-$PAYLOAD_VERSION.tar.gz" -C "$STAGE" d9mt
 (cd "$DIST" && shasum -a 256 "d9mt-$PAYLOAD_VERSION.tar.gz" > "d9mt-$PAYLOAD_VERSION.tar.gz.sha256")
