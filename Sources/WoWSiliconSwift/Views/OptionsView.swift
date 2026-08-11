@@ -78,6 +78,16 @@ struct OptionsView: View {
 
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Picker("Renderer", selection: viewModel.rendererBinding()) {
+                    Text("d9vk (Vulkan)").tag(RendererBackend.d9vk)
+                    Text("d9mt (Metal, experimental)").tag(RendererBackend.d9mt)
+                }
+                .pickerStyle(.menu)
+                Text("d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: requires Xcode command line tools; switch back to d9vk if the game misbehaves. Takes effect after re-patching.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             toggleRow(
                 "Enable Metal Hud (show FPS)",
                 binding: viewModel.boolBinding(\.enableMetalHud)
