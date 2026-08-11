@@ -173,6 +173,13 @@ struct GraphicsSettings: Codable, Equatable, Sendable {
 
 // MARK: - Version settings
 
+/// D3D9 translation backend staged into the game folder. d9vk (D3D9→Vulkan→MoltenVK)
+/// is the default; d9mt (D3D9→Metal, experimental) requires Xcode CLT at runtime.
+enum RendererBackend: String, Codable, CaseIterable, Equatable, Sendable {
+    case d9vk
+    case d9mt
+}
+
 struct VersionSettings: Codable, Equatable, Sendable {
     var enableVanillaTweaks: Bool
     var remapOptionAsAlt: Bool
@@ -186,6 +193,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
     var graphicsSettings: GraphicsSettings
     var enableLibSiliconPatch: Bool
     var userDisabledLibSiliconPatch: Bool
+    var renderer: RendererBackend
 
     init(
         enableVanillaTweaks: Bool = false,
@@ -199,7 +207,8 @@ struct VersionSettings: Codable, Equatable, Sendable {
         cursorSizeMultiplier: Int = 1,
         graphicsSettings: GraphicsSettings = GraphicsSettings(),
         enableLibSiliconPatch: Bool = false,
-        userDisabledLibSiliconPatch: Bool = false
+        userDisabledLibSiliconPatch: Bool = false,
+        renderer: RendererBackend = .d9vk
     ) {
         self.enableVanillaTweaks = enableVanillaTweaks
         self.remapOptionAsAlt = remapOptionAsAlt
@@ -213,6 +222,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         self.graphicsSettings = graphicsSettings
         self.enableLibSiliconPatch = enableLibSiliconPatch
         self.userDisabledLibSiliconPatch = userDisabledLibSiliconPatch
+        self.renderer = renderer
     }
 
     enum CodingKeys: String, CodingKey {
@@ -221,6 +231,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         case vanillaTweaksParameters, cursorSizeMultiplier
         case graphicsSettings
         case enableLibSiliconPatch, userDisabledLibSiliconPatch
+        case renderer
         // Legacy keys kept for migration only
         case reduceTerrainDistance, setMultisampleTo2x, setShadowLOD0, userDisabledShadowLOD
     }
@@ -238,6 +249,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         cursorSizeMultiplier = try container.decodeIfPresent(Int.self, forKey: .cursorSizeMultiplier) ?? 1
         enableLibSiliconPatch = try container.decodeIfPresent(Bool.self, forKey: .enableLibSiliconPatch) ?? false
         userDisabledLibSiliconPatch = try container.decodeIfPresent(Bool.self, forKey: .userDisabledLibSiliconPatch) ?? false
+        renderer = try container.decodeIfPresent(RendererBackend.self, forKey: .renderer) ?? .d9vk
 
         if let gs = try container.decodeIfPresent(GraphicsSettings.self, forKey: .graphicsSettings) {
             graphicsSettings = gs
@@ -271,6 +283,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         try container.encode(graphicsSettings, forKey: .graphicsSettings)
         try container.encode(enableLibSiliconPatch, forKey: .enableLibSiliconPatch)
         try container.encode(userDisabledLibSiliconPatch, forKey: .userDisabledLibSiliconPatch)
+        try container.encode(renderer, forKey: .renderer)
     }
 
     func mergedWithDefaults(_ defaults: VersionSettings) -> VersionSettings {
