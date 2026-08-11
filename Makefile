@@ -24,6 +24,16 @@ SWIFT_ENV := SWIFT_MODULECACHE_PATH="$(BUILD_DIR)/swift-module-cache" CLANG_MODU
 SWIFT_BUILD := $(SWIFT_ENV) swift build --arch arm64 --disable-sandbox --build-path "$(BUILD_DIR)" --cache-path "$(BUILD_DIR)/spm-cache" --manifest-cache none
 RESOURCE_BUNDLE := $(BUILD_DIR)/arm64-apple-macosx/release/WoWSilicon-swift_WoWSiliconSwift.bundle
 
+# The Wine runtime is staged as a nested application bundle. macOS Game Mode only
+# recognises a process whose real executable path is <X>.app/Contents/MacOS/<name>
+# and whose Info.plist declares a games category — verified empirically on macOS 27,
+# where both the old .../SharedSupport/wine/bin/wine geometry and a merely nested
+# Contents/MacOS/bin/wine yield no LaunchServices bundle record at all.
+GAME_APP_NAME := WoWSilicon Game.app
+GAME_APP := $(APP_BUNDLE)/Contents/SharedSupport/$(GAME_APP_NAME)
+GAME_APP_ID ?= com.wowsilicon.swift.game
+ROSETTA_SRC := Sources/WoWSiliconSwift/Resources/Patching/rosettax87
+
 # ---------------------------------------------------------------------------
 # Bundled Wine runtime (built by .github/workflows/runtime.yml, published as
 # GitHub release runtime-v$(RUNTIME_VERSION); tarball layout: wine/{bin,lib,share,VERSION}).
@@ -77,13 +87,60 @@ bundle: build fetch-runtime
 		rsync -a Sources/WoWSiliconSwift/Resources/ "$(APP_BUNDLE)/Contents/Resources/"; \
 	fi
 	@cp "$(APP_ICON)" "$(APP_BUNDLE)/Contents/Resources/turtle.icns"
-	@echo "Bundling Wine runtime v$(RUNTIME_VERSION)..."
-	@mkdir -p "$(APP_BUNDLE)/Contents/SharedSupport"
+	@echo "Bundling Wine runtime v$(RUNTIME_VERSION) as $(GAME_APP_NAME)..."
+	@mkdir -p "$(GAME_APP)/Contents"
 	@# ditto (not cp -R): staging must preserve the tarball's file mtimes.
 	@# wine stamps prefixes with wine.inf's mtime and re-runs the full prefix
 	@# update on any mismatch — cp -R restamps mtimes at build time, which made
 	@# every app build (even of the same runtime) force a prefix refresh.
-	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine" "$(APP_BUNDLE)/Contents/SharedSupport/wine"
+	@# bin/ becomes Contents/MacOS so the game process gets a bundle record;
+	@# lib/ and share/ stay siblings of it, which is exactly what wine's own
+	@# <bindir>/../lib and <bindir>/../share resolution expects.
+	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/bin" "$(GAME_APP)/Contents/MacOS"
+	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/lib" "$(GAME_APP)/Contents/lib"
+	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/share" "$(GAME_APP)/Contents/share"
+	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/VERSION" "$(GAME_APP)/Contents/VERSION"
+	@# Wine execs the rosettax87 loader as argv[0] for i386 images
+	@# (dlls/ntdll/unix/loader.c). Bundle identity is re-resolved on exec, so the
+	@# loader — and the libRuntimeRosettax87 it locates via its own directory —
+	@# must sit in the same Contents/MacOS or Game Mode is lost at that hop.
+	@ditto "$(ROSETTA_SRC)/rosettax87" "$(GAME_APP)/Contents/MacOS/rosettax87"
+	@ditto "$(ROSETTA_SRC)/libRuntimeRosettax87" "$(GAME_APP)/Contents/MacOS/libRuntimeRosettax87"
+	@# Game Mode identity survives the loader re-exec only if the FINAL exec
+	@# lands on a literal Contents/MacOS path. ntdll re-execs i386 images with
+	@# argv[1] = Contents/lib/wine/x86_64-unix/wine, so ROSETTA_X87_PATH points
+	@# at wine-rosetta-shim (tools/gamemode-shim/main.c), which rewrites argv[1]
+	@# to wine-gamemode — a physical copy of that loader (the only binary with
+	@# the WINE_RESERVE segments) — before exec'ing the real rosettax87. The
+	@# loader finds ntdll.so in its own directory, hence the ntdll.so symlink.
+	@# wine-gamemode must NOT be named "wine": the CFBundleExecutable slot binds
+	@# the bundle Info.plist into signature validation, and this binary's
+	@# embedded org.winehq.wine __info_plist would mismatch it (SIGKILL on exec).
+	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/lib/wine/x86_64-unix/wine" "$(GAME_APP)/Contents/MacOS/wine-gamemode"
+	@ln -sfh ../lib/wine/x86_64-unix/ntdll.so "$(GAME_APP)/Contents/MacOS/ntdll.so"
+	@cc -O2 -arch arm64 tools/gamemode-shim/main.c -o "$(GAME_APP)/Contents/MacOS/wine-rosetta-shim"
+	@rm -f "$(GAME_APP)/Contents/Info.plist"
+	@plutil -create xml1 "$(GAME_APP)/Contents/Info.plist"
+	@# CFBundleExecutable MUST be wine-gamemode: LaunchServices only grants the
+	@# game process its bundle identity (and hence Game Mode) when the process
+	@# runs the bundle's declared executable — any other file in Contents/MacOS
+	@# checks in with a NULL bundle id (verified empirically on macOS 27).
+	@/usr/libexec/PlistBuddy \
+		-c "Add :CFBundleExecutable string wine-gamemode" \
+		-c "Add :CFBundleIdentifier string $(GAME_APP_ID)" \
+		-c "Add :CFBundleName string $(APP_NAME) Game" \
+		-c "Add :CFBundlePackageType string APPL" \
+		-c "Add :CFBundleInfoDictionaryVersion string 6.0" \
+		-c "Add :CFBundleShortVersionString string $(VERSION)" \
+		-c "Add :CFBundleVersion string $(BUILD_NUMBER)" \
+		-c "Add :LSMinimumSystemVersion string 15.0" \
+		-c "Add :LSApplicationCategoryType string public.app-category.role-playing-games" \
+		-c "Add :LSSupportsGameMode bool true" \
+		-c "Add :GCSupportsGameMode bool true" \
+		"$(GAME_APP)/Contents/Info.plist" >/dev/null
+	@# LSSupportsGameMode is macOS 26+; GCSupportsGameMode covers macOS 14-25,
+	@# which is most of this app's supported range (LSMinimumSystemVersion 15.0).
+	@# Either key alone is sufficient on macOS 27 — both are set deliberately.
 	@if [ -n "$(CODESIGN_IDENTITY)" ]; then \
 		echo "Signing $(APP_BUNDLE) with identity $(CODESIGN_IDENTITY)..."; \
 		codesign --force --deep --sign "$(CODESIGN_IDENTITY)" "$(APP_BUNDLE)"; \

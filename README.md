@@ -98,7 +98,7 @@ WoWSilicon.app ships the following third-party components:
   at the commit pinned in [`tools/runtime/build-wine-runtime.sh`](tools/runtime/build-wine-runtime.sh).
   The app bundles the `runtime-v*` release selected by `RUNTIME_VERSION` in the
   [`Makefile`](Makefile); Wine's LICENSE files ship inside
-  `WoWSilicon.app/Contents/SharedSupport/wine/`.
+  `WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/share/licenses/`.
 - **rosettax87_jit** (MIT) — the RosettaX87 loader, by
   [Lifeisawful](https://github.com/Lifeisawful/rosettax87_jit).
 - **winerosetta** — game-folder DLL payload, from the

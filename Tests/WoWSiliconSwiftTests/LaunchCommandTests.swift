@@ -2,8 +2,8 @@ import XCTest
 @testable import WoWSiliconSwift
 
 final class LaunchCommandTests: XCTestCase {
-    private let winePath = "/Applications/WoWSilicon.app/Contents/SharedSupport/wine/bin/wine"
-    private let loaderPath = "/Applications/WoWSilicon.app/Contents/Resources/Patching/rosettax87/rosettax87"
+    private let winePath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wine"
+    private let loaderPath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/rosettax87"
     private let prefixPath = "/Applications/WoWSilicon Data/prefix"
 
     func testFullCommandWithLoaderAndDefaultSettings() {
@@ -21,6 +21,7 @@ final class LaunchCommandTests: XCTestCase {
             "cd \"/Games/WoW Classic\" && " +
             "ROSETTA_X87_PATH=\"\(loaderPath)\" " +
             "WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=0 MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1 " +
+            "WINEMSYNC=0 WINESERVER=\"/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wineserver\" " +
             "WINEPREFIX=\"/Applications/WoWSilicon Data/prefix\" " +
             "\"\(winePath)\" \"/Games/WoW Classic/WoW.exe\""
         )
@@ -111,6 +112,41 @@ final class LaunchCommandTests: XCTestCase {
         )
 
         XCTAssertTrue(command.hasSuffix("\"/Games/Launcher/Launcher.exe\" \"--disable-gpu\" \"--in-process-gpu\""))
+    }
+
+    func testLauncherCommandUsesSwiftShaderNotGpuDisableFlags() {
+        let command = LaunchService.makeLauncherShellCommand(
+            exePath: "/Data/prefix/drive_c/Program Files/Launcher/Launcher.exe",
+            wineBinaryPath: winePath,
+            rosettaLoaderPath: loaderPath,
+            winePrefixPath: prefixPath,
+            settings: VersionSettings()
+        )
+
+        // Regression guard, verified against Ascension Launcher 1.0.102 on the
+        // bundled wine-11.14: `--disable-gpu`/`--in-process-gpu` (CrossOver-era)
+        // leave Electron windowless (GPU thread NOTREACHED loop), and NO flags
+        // leaves the window blank (wined3d presents no pixels). Only the SwANGLE
+        // software path renders.
+        XCTAssertTrue(command.hasSuffix(
+            "\"/Data/prefix/drive_c/Program Files/Launcher/Launcher.exe\" " +
+            "\"--use-gl=angle\" \"--use-angle=swiftshader\" \"--enable-unsafe-swiftshader\""
+        ))
+        XCTAssertFalse(command.contains("--disable-gpu"))
+        XCTAssertFalse(command.contains("--in-process-gpu"))
+        XCTAssertTrue(command.hasPrefix("cd \"/Data/prefix/drive_c/Program Files/Launcher\" && "))
+    }
+
+    func testLauncherCommandLeavesMscoreeEnabledForManagedDLLs() {
+        let command = LaunchService.makeLauncherShellCommand(
+            exePath: "/Data/prefix/drive_c/Program Files/Ascension Launcher/Ascension Launcher.exe",
+            wineBinaryPath: winePath,
+            rosettaLoaderPath: loaderPath,
+            winePrefixPath: prefixPath,
+            settings: VersionSettings()
+        )
+
+        XCTAssertTrue(command.contains("WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=b;mshtml=d\""))
     }
 
     func testWinePrefixIsPinnedQuotedAndEscaped() {

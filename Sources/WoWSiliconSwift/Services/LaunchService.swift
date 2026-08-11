@@ -230,10 +230,21 @@ final class LaunchService: @unchecked Sendable {
         rosettaLoaderPath: String?,
         winePrefixPath: String,
         settings: VersionSettings,
+        dllOverrides: String = "d3d9=n,b;mscoree=d;mshtml=d",
         extraArguments: [String] = []
     ) -> String {
         let mtlValue = settings.enableMetalHud ? "1" : "0"
-        let baseEnv = "WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=\(mtlValue) MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
+        // Pinned explicitly, never omitted: msync is compiled into the bundled
+        // runtime and gated on atoi(getenv("WINEMSYNC")), and a client that
+        // disagrees with the running wineserver calls exit(1). Emitting 0 keeps an
+        // inherited or user-typed value from desyncing us from the registry
+        // helpers, which drive the same prefix through WineRegistrySupport.
+        let msyncValue = settings.enableMsync ? "1" : "0"
+        // wine's exec_wineserver() probes <bin_dir>/wineserver first, and with the
+        // runtime restaged into the nested game .app that derives to a nonexistent
+        // Contents/bin — so the WINESERVER fallback has to be pinned.
+        let wineserverPath = (wineBinaryPath as NSString).deletingLastPathComponent + "/wineserver"
+        let baseEnv = "WINEDLLOVERRIDES=\"\(dllOverrides)\" MTL_HUD_ENABLED=\(mtlValue) MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1 WINEMSYNC=\(msyncValue) WINESERVER=\(doubleQuote(wineserverPath))"
         let custom = settings.environmentVariables
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: ";", with: " ")
@@ -257,6 +268,51 @@ final class LaunchService: @unchecked Sendable {
             command += " \(doubleQuote(argument))"
         }
         return command
+    }
+
+    /// Chromium arguments for third-party (usually Electron-based) launcher exes.
+    /// Under the bundled runtime, Electron can neither disable GL nor use its
+    /// default ANGLE-on-D3D11 path (verified against Ascension Launcher 1.0.102
+    /// on wine-11.14):
+    /// - the CrossOver-era `--disable-gpu` / `--in-process-gpu` flags put the GPU
+    ///   thread into a GL-disabled state whose viz/SharedImage layer still demands
+    ///   a context — it loops on `gl_factory_win.cc NOTREACHED` /
+    ///   `ContextResult::kFatalFailure` and no window is ever presented;
+    /// - with no flags, ANGLE-on-D3D11 lands on wined3d, whose winemac
+    ///   presentation produces no pixels: the window appears but stays blank
+    ///   (DOM complete, `Page.captureScreenshot` times out).
+    /// SwANGLE pins the whole stack to ANGLE→Vulkan→SwiftShader (pure CPU, ships
+    /// with Electron as vk_swiftshader.dll) and presents via plain GDI blits — the
+    /// launcher renders fully. `--enable-unsafe-swiftshader` is required for the
+    /// same path on Chromium ≥133 (Electron ≥35) and is ignored as an unknown
+    /// switch by older versions.
+    static let launcherChromiumArguments = [
+        "--use-gl=angle",
+        "--use-angle=swiftshader",
+        "--enable-unsafe-swiftshader",
+    ]
+
+    /// Command for a third-party launcher exe. See `launcherChromiumArguments`
+    /// for why the Chromium flags differ from the CrossOver-era ones, and note
+    /// mscoree stays enabled (builtin) for launchers with managed components.
+    static func makeLauncherShellCommand(
+        exePath: String,
+        wineBinaryPath: String,
+        rosettaLoaderPath: String?,
+        winePrefixPath: String,
+        settings: VersionSettings
+    ) -> String {
+        let exeURL = URL(fileURLWithPath: exePath)
+        return makeShellCommand(
+            gamePath: exeURL.deletingLastPathComponent().path,
+            executablePath: exeURL.path,
+            wineBinaryPath: wineBinaryPath,
+            rosettaLoaderPath: rosettaLoaderPath,
+            winePrefixPath: winePrefixPath,
+            settings: settings,
+            dllOverrides: "d3d9=n,b;mscoree=b;mshtml=d",
+            extraArguments: launcherChromiumArguments
+        )
     }
 
     /// Quotes the VALUE of each `KEY=VALUE` token so values with spaces or shell
@@ -352,15 +408,12 @@ final class LaunchService: @unchecked Sendable {
             return
         }
 
-        let exeURL = URL(fileURLWithPath: exePath)
-        let shellCommand = LaunchService.makeShellCommand(
-            gamePath: exeURL.deletingLastPathComponent().path,
-            executablePath: exeURL.path,
+        let shellCommand = LaunchService.makeLauncherShellCommand(
+            exePath: exePath,
             wineBinaryPath: wineBinaryURL.path,
             rosettaLoaderPath: rosettaLoaderURL.path,
             winePrefixPath: PortableStorage.shared.prefixURL.path,
-            settings: version.settings,
-            extraArguments: ["--disable-gpu", "--in-process-gpu"]
+            settings: version.settings
         )
 
         let process = Process()
@@ -505,6 +558,60 @@ final class LaunchService: @unchecked Sendable {
                 print("Failed to remove WDB directory at \(url.path): \(error.localizedDescription)")
             }
         }
+    }
+
+    // MARK: - msync transition
+
+    /// msync is latched by the wineserver at startup (`do_msync()` caches
+    /// getenv("WINEMSYNC") once), and a client whose value disagrees with the
+    /// running server calls exit(1). Called when the msync toggle changes so the
+    /// next Wine invocation autostarts a server with the new setting. Graceful
+    /// only — `wineserver -k` flushes the registry, unlike SIGKILL.
+    static func shutdownWineserverForMsyncTransition() {
+        let runtime = WineRuntime.shared
+        guard FileManager.default.isExecutableFile(atPath: runtime.wineserverBinaryURL.path) else { return }
+
+        // Never take down a live session: a running bundled wine client means the
+        // user is playing, and killing the server kills every connected client.
+        // The old mode simply persists until that session ends — the server exits
+        // seconds after its last client — and the next launch picks up the new
+        // setting, which is exactly what the toggle's caption promises.
+        guard !bundledWineClientIsRunning() else { return }
+
+        var environment = ProcessInfo.processInfo.environment
+        environment["WINEPREFIX"] = PortableStorage.shared.prefixURL.path
+        _ = try? ProcessRunner.run(
+            executablePath: runtime.wineserverBinaryURL.path,
+            arguments: ["-k"],
+            environment: environment,
+            timeout: 5
+        )
+        // Wait for it to exit so a relaunch cannot race the dying server and
+        // inherit its old msync mode.
+        _ = try? ProcessRunner.run(
+            executablePath: runtime.wineserverBinaryURL.path,
+            arguments: ["-w"],
+            environment: environment,
+            timeout: 30
+        )
+    }
+
+    /// True when a bundled wine *client* (not just the wineserver) is alive.
+    /// The wine binary's path is a prefix of the wineserver's, so a bare
+    /// `pgrep -f <winePath>` also matches the server — subtract its PIDs.
+    private static func bundledWineClientIsRunning() -> Bool {
+        func pgrep(_ pattern: String) -> Set<String> {
+            guard let result = try? ProcessRunner.run(
+                executablePath: "/usr/bin/pgrep",
+                arguments: ["-f", pattern],
+                timeout: 5
+            ), result.exitCode == 0 else { return [] }
+            return Set(result.stdout.split(separator: "\n").map(String.init))
+        }
+        let all = pgrep(WineRuntime.shared.wineBinaryURL.path)
+        guard !all.isEmpty else { return false }
+        let servers = pgrep(WineRuntime.shared.wineserverBinaryURL.path)
+        return !all.subtracting(servers).isEmpty
     }
 
     // MARK: - Force quit

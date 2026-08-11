@@ -86,6 +86,15 @@ struct OptionsView: View {
                 "Show Terminal",
                 binding: viewModel.boolBinding(\.showTerminalNormally)
             )
+            VStack(alignment: .leading, spacing: 2) {
+                toggleRow(
+                    "Enable MSync (experimental)",
+                    binding: viewModel.msyncBinding()
+                )
+                Text("Faster Wine synchronization. Some applications are broken by it; turn off if the game misbehaves. Takes effect on the next launch.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if viewModel.isVanillaTweaksSupported {
                 toggleRow(
                     "Enable vanilla-tweaks",

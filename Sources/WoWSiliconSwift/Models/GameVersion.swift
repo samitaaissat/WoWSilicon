@@ -178,6 +178,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
     var remapOptionAsAlt: Bool
     var autoDeleteWdb: Bool
     var enableMetalHud: Bool
+    var enableMsync: Bool
     var showTerminalNormally: Bool
     var environmentVariables: String
     var vanillaTweaksParameters: String
@@ -191,6 +192,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         remapOptionAsAlt: Bool = false,
         autoDeleteWdb: Bool = true,
         enableMetalHud: Bool = false,
+        enableMsync: Bool = false,
         showTerminalNormally: Bool = false,
         environmentVariables: String = "",
         vanillaTweaksParameters: String = "",
@@ -203,6 +205,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         self.remapOptionAsAlt = remapOptionAsAlt
         self.autoDeleteWdb = autoDeleteWdb
         self.enableMetalHud = enableMetalHud
+        self.enableMsync = enableMsync
         self.showTerminalNormally = showTerminalNormally
         self.environmentVariables = environmentVariables
         self.vanillaTweaksParameters = vanillaTweaksParameters
@@ -213,7 +216,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case enableVanillaTweaks, remapOptionAsAlt, autoDeleteWdb, enableMetalHud
+        case enableVanillaTweaks, remapOptionAsAlt, autoDeleteWdb, enableMetalHud, enableMsync
         case showTerminalNormally, environmentVariables
         case vanillaTweaksParameters, cursorSizeMultiplier
         case graphicsSettings
@@ -228,6 +231,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         remapOptionAsAlt = try container.decodeIfPresent(Bool.self, forKey: .remapOptionAsAlt) ?? false
         autoDeleteWdb = try container.decodeIfPresent(Bool.self, forKey: .autoDeleteWdb) ?? true
         enableMetalHud = try container.decodeIfPresent(Bool.self, forKey: .enableMetalHud) ?? false
+        enableMsync = try container.decodeIfPresent(Bool.self, forKey: .enableMsync) ?? false
         showTerminalNormally = try container.decodeIfPresent(Bool.self, forKey: .showTerminalNormally) ?? false
         environmentVariables = try container.decodeIfPresent(String.self, forKey: .environmentVariables) ?? ""
         vanillaTweaksParameters = try container.decodeIfPresent(String.self, forKey: .vanillaTweaksParameters) ?? ""
@@ -259,6 +263,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         try container.encode(remapOptionAsAlt, forKey: .remapOptionAsAlt)
         try container.encode(autoDeleteWdb, forKey: .autoDeleteWdb)
         try container.encode(enableMetalHud, forKey: .enableMetalHud)
+        try container.encode(enableMsync, forKey: .enableMsync)
         try container.encode(showTerminalNormally, forKey: .showTerminalNormally)
         try container.encode(environmentVariables, forKey: .environmentVariables)
         try container.encode(vanillaTweaksParameters, forKey: .vanillaTweaksParameters)

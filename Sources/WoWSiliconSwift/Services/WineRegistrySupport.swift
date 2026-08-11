@@ -26,12 +26,33 @@ enum WineRegistrySupport {
         try WineRuntime.shared.validatedWineBinaryURL().path
     }
 
-    static func makeWineEnvironment(prefixURL: URL, wineExecutable: String) -> [String: String] {
+    /// The app-wide msync setting. msync is a property of the *wineserver*, and
+    /// every version shares one prefix and therefore one server, so this is a
+    /// global preference rather than a per-version one.
+    static var msyncEnabled: Bool {
+        UserPrefsStore(configDirectory: PortableStorage.shared.configDirectory).load().enableMsync
+    }
+
+    /// Builds the environment for every non-launch Wine invocation (registry edits,
+    /// prefix bootstrap, dependency installs). These all drive the same prefix and
+    /// hence the same wineserver as the game, so `WINEMSYNC` must match what
+    /// `LaunchService.makeShellCommand` emits — a mismatch is a hard exit(1), not a
+    /// degraded mode. It defaults to the global preference so the two paths cannot
+    /// drift; tests pass it explicitly.
+    static func makeWineEnvironment(
+        prefixURL: URL,
+        wineExecutable: String,
+        enableMsync: Bool = WineRegistrySupport.msyncEnabled
+    ) -> [String: String] {
         var environment = ProcessInfo.processInfo.environment
         environment["WINEPREFIX"] = prefixURL.path
         environment["__COMPAT_LAYER"] = "RunAsInvoker"
+        environment["WINEMSYNC"] = enableMsync ? "1" : "0"
 
         let wineDirectory = (wineExecutable as NSString).deletingLastPathComponent
+        // wine's exec_wineserver() derives <bin_dir>/wineserver from the dll dir,
+        // which no longer resolves under the nested game .app layout.
+        environment["WINESERVER"] = wineDirectory + "/wineserver"
         if var path = environment["PATH"] {
             let components = path.split(separator: ":").map(String.init)
             if !components.contains(wineDirectory) {

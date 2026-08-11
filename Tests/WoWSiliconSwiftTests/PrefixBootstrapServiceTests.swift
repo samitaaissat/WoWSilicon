@@ -23,15 +23,16 @@ final class PrefixBootstrapServiceTests: XCTestCase {
     /// A fake .app bundle carrying an executable wine/wineserver and a VERSION file.
     private func makeFakeRuntimeBundle(version: String) throws -> URL {
         let bundleURL = try makeTemporaryDirectory().appendingPathComponent("WoWSilicon.app", isDirectory: true)
-        let binDir = bundleURL.appendingPathComponent("Contents/SharedSupport/wine/bin", isDirectory: true)
-        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
-        for name in ["wine", "wineserver"] {
-            let url = binDir.appendingPathComponent(name)
+        // Derived from WineRuntime rather than hardcoded so the fixture cannot
+        // drift away from the real staged layout.
+        let runtime = WineRuntime(bundleURL: bundleURL)
+        try FileManager.default.createDirectory(at: runtime.executablesDirectoryURL, withIntermediateDirectories: true)
+        for url in [runtime.wineBinaryURL, runtime.wineserverBinaryURL] {
             try "#!/bin/sh\nexit 0\n".write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
         }
         try version.write(
-            to: bundleURL.appendingPathComponent("Contents/SharedSupport/wine/VERSION"),
+            to: runtime.runtimeRootURL.appendingPathComponent("VERSION"),
             atomically: true, encoding: .utf8)
         return bundleURL
     }
