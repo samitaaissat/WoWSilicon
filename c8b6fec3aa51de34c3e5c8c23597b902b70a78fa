@@ -1,0 +1,46 @@
+{
+    "version": "0.1.0",
+    "id": "1b067336-82e3-4a95-bce9-46bd49b0c29c",
+    "timestamp": "2026-08-11T16:30:07.614192Z",
+    "vcs": {
+        "type": "git",
+        "revision": "c8b6fec3aa51de34c3e5c8c23597b902b70a78fa",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Tests/WoWSiliconSwiftTests/LaunchCommandTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:d06cbc53a5f44c5a2dc04e79d537bb1f83d7c0a8",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.223"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 33,
+                            "end_line": 35
+                        },
+                        {
+                            "start_line": 37,
+                            "end_line": 37
+                        },
+                        {
+                            "start_line": 51,
+                            "end_line": 53
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 55
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
