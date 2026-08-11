@@ -106,3 +106,23 @@ Mode keys — before codesigning. That geometry is what lets macOS Game Mode
 recognise the game process; keep executables directly in `Contents/MacOS`. To
 move the app to a new runtime, update all three pins in the same commit and
 rebuild.
+
+### d9mt Payload
+
+The optional d9mt renderer payload (`d9mt-<n>.tar.gz`: `d3d9.dll` plus the
+`winemetal`/`d9mtmetal` DLLs and `.so` unixlibs) is built by
+`tools/d9mt/build-payload.sh` and uploaded as an extra asset on the
+`runtime-v<n>` release page — it has no tag or workflow of its own.
+
+The app pins it in the `Makefile` alongside the runtime pins:
+
+- `D9MT_VERSION` — the payload version (`1` for `d9mt-1.tar.gz`)
+- `D9MT_SHA256` — the expected checksum of the tarball
+- `D9MT_URL` — the GitHub release asset URL
+
+`make fetch-d9mt` downloads the tarball to `.build/d9mt-cache/`, verifies
+`D9MT_SHA256`, and extracts it into
+`Sources/WoWSiliconSwift/Resources/Patching/d9mt` (gitignored — never commit
+it); `make bundle` then stages the `winemetal`/`d9mtmetal` files as Wine
+builtins into the nested game app's `lib/wine` arch dirs. Bump all three
+`D9MT_*` pins together in one commit, like the runtime pins.
