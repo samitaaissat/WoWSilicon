@@ -1,0 +1,38 @@
+{
+    "version": "0.1.0",
+    "id": "2f70d1b9-3d9f-457d-9349-66511fdab678",
+    "timestamp": "2026-08-11T19:01:19.550538Z",
+    "vcs": {
+        "type": "git",
+        "revision": "61e90103bb0d8d877926c75e3cdefc424fc04a39",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Views/OptionsView.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:970fbcc9b32ce2d3fa9131ae75b4a64b87e28aab",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.224"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 81,
+                            "end_line": 81
+                        },
+                        {
+                            "start_line": 88,
+                            "end_line": 89
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
