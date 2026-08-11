@@ -29,6 +29,11 @@ enum PatchService {
     static func applyGamePatch(for version: GameVersion) throws {
         let gameURL = try stageGamePatchFiles(for: version)
 
+        if version.settings.renderer == .d9mt {
+            try installD9MTPrefixSupport(winePrefixPath: WineRegistrySupport.winePrefixURL().path)
+            try registerD9MTBuiltins()
+        }
+
         if version.usesRosettaPatching && version.supportsDLLLoading {
             try patchDivxDecoder(gameURL: gameURL)
         }
@@ -106,6 +111,59 @@ enum PatchService {
         env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree=d;mshtml=d"
         env["WINEDEBUG"] = "-all"
         return env
+    }
+
+    /// d9mt renderer: installs winemetal/d9mtmetal as Wine builtins — the 64-bit
+    /// PE into system32, the 32-bit PE into syswow64, and the unix .so into
+    /// x86_64-unix, matching DXMT's install convention. The same files are staged
+    /// into the bundled runtime's lib/wine arch dirs by `make bundle`, which is
+    /// where wine's find_builtin_dll actually loads them from; the prefix copies
+    /// keep the loader's lookup order deterministic.
+    static func installD9MTPrefixSupport(winePrefixPath: String) throws {
+        let pairs: [(subdirectory: String, name: String, ext: String, destination: String)] = [
+            ("Patching/d9mt/winemetal/x86_64-windows", "winemetal", "dll", "drive_c/windows/system32/winemetal.dll"),
+            ("Patching/d9mt/winemetal/i386-windows", "winemetal", "dll", "drive_c/windows/syswow64/winemetal.dll"),
+            ("Patching/d9mt/winemetal/x86_64-unix", "winemetal", "so", "drive_c/windows/x86_64-unix/winemetal.so"),
+            ("Patching/d9mt/d9mtmetal/x86_64-windows", "d9mtmetal", "dll", "drive_c/windows/system32/d9mtmetal.dll"),
+            ("Patching/d9mt/d9mtmetal/i386-windows", "d9mtmetal", "dll", "drive_c/windows/syswow64/d9mtmetal.dll"),
+            ("Patching/d9mt/d9mtmetal/x86_64-unix", "d9mtmetal", "so", "drive_c/windows/x86_64-unix/d9mtmetal.so")
+        ]
+        let prefixURL = URL(fileURLWithPath: winePrefixPath, isDirectory: true)
+        for pair in pairs {
+            guard let source = resourceURL(named: pair.name, extension: pair.ext, subdirectory: pair.subdirectory) else {
+                throw PatchServiceError.resourceMissing("\(pair.subdirectory)/\(pair.name).\(pair.ext)")
+            }
+            let destination = prefixURL.appendingPathComponent(pair.destination)
+            // A bootstrapped prefix has system32/syswow64 but no x86_64-unix.
+            try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try copyItem(from: source, to: destination)
+        }
+    }
+
+    /// Registers winemetal/d9mtmetal as builtin DLLs in the shared prefix so wine
+    /// resolves them from its own lib tree instead of looking for native DLLs.
+    /// Follows patchDivxDecoder's wine invocation pattern (same environment, same
+    /// prefix); not unit-tested for the same reason — it needs a real Wine runtime.
+    private static func registerD9MTBuiltins() throws {
+        let wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
+
+        let env = makeDivxPatchEnvironment(
+            prefixURL: WineRegistrySupport.winePrefixURL(),
+            wineExecutable: wineBinaryURL.path
+        )
+
+        for dll in ["winemetal", "d9mtmetal"] {
+            let result = try ProcessRunner.run(
+                executablePath: wineBinaryURL.path,
+                arguments: ["reg", "add", #"HKCU\Software\Wine\DllOverrides"#, "/v", dll, "/d", "builtin", "/f"],
+                environment: env,
+                timeout: 120
+            )
+
+            if result.exitCode != 0 {
+                throw PatchServiceError.fileOperationFailed("Failed to register \(dll)=builtin: \(result.combinedOutput)")
+            }
+        }
     }
 
     private static func patchDivxDecoder(gameURL: URL) throws {

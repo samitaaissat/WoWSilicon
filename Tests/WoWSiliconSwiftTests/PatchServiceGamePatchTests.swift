@@ -85,6 +85,57 @@ final class PatchServiceGamePatchTests: XCTestCase {
         XCTAssertEqual(staged, bundled)
     }
 
+    /// Runtime-dependent like the other game-patch tests: the sources live in the
+    /// Patching/d9mt bundle resources (SPM resource bundle under swift test), so
+    /// skip when they are not resolvable (run make fetch-d9mt).
+    func testInstallD9MTPrefixSupportCopiesWinemetalAndD9mtmetalIntoPrefix() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winemetal", extension: "dll", subdirectory: "Patching/d9mt/winemetal/x86_64-windows") == nil
+                || PatchService.resourceURL(named: "winemetal", extension: "dll", subdirectory: "Patching/d9mt/winemetal/i386-windows") == nil
+                || PatchService.resourceURL(named: "winemetal", extension: "so", subdirectory: "Patching/d9mt/winemetal/x86_64-unix") == nil
+                || PatchService.resourceURL(named: "d9mtmetal", extension: "dll", subdirectory: "Patching/d9mt/d9mtmetal/x86_64-windows") == nil
+                || PatchService.resourceURL(named: "d9mtmetal", extension: "dll", subdirectory: "Patching/d9mt/d9mtmetal/i386-windows") == nil
+                || PatchService.resourceURL(named: "d9mtmetal", extension: "so", subdirectory: "Patching/d9mt/d9mtmetal/x86_64-unix") == nil,
+            "Bundled d9mt resources not resolvable under swift test (run make fetch-d9mt)"
+        )
+
+        let prefixURL = try makeTemporaryDirectory()
+        // A bootstrapped prefix has system32/syswow64 but no x86_64-unix directory;
+        // installD9MTPrefixSupport must create whatever destination dir is missing.
+        try FileManager.default.createDirectory(
+            at: prefixURL.appendingPathComponent("drive_c/windows/system32"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: prefixURL.appendingPathComponent("drive_c/windows/syswow64"), withIntermediateDirectories: true)
+
+        try PatchService.installD9MTPrefixSupport(winePrefixPath: prefixURL.path)
+
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: prefixURL.appendingPathComponent("drive_c/windows/system32/winemetal.dll").path))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: prefixURL.appendingPathComponent("drive_c/windows/syswow64/winemetal.dll").path))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: prefixURL.appendingPathComponent("drive_c/windows/x86_64-unix/winemetal.so").path))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: prefixURL.appendingPathComponent("drive_c/windows/system32/d9mtmetal.dll").path))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: prefixURL.appendingPathComponent("drive_c/windows/syswow64/d9mtmetal.dll").path))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: prefixURL.appendingPathComponent("drive_c/windows/x86_64-unix/d9mtmetal.so").path))
+
+        // Arch-sensitive: the 64-bit PE goes to system32, the 32-bit PE to syswow64.
+        for dll in ["winemetal", "d9mtmetal"] {
+            let staged64 = try Data(contentsOf: prefixURL.appendingPathComponent("drive_c/windows/system32/\(dll).dll"))
+            let bundled64 = try Data(contentsOf: PatchService.resourceURL(
+                named: dll, extension: "dll", subdirectory: "Patching/d9mt/\(dll)/x86_64-windows")!)
+            XCTAssertEqual(staged64, bundled64, "system32/\(dll).dll must be the x86_64-windows build")
+
+            let staged32 = try Data(contentsOf: prefixURL.appendingPathComponent("drive_c/windows/syswow64/\(dll).dll"))
+            let bundled32 = try Data(contentsOf: PatchService.resourceURL(
+                named: dll, extension: "dll", subdirectory: "Patching/d9mt/\(dll)/i386-windows")!)
+            XCTAssertEqual(staged32, bundled32, "syswow64/\(dll).dll must be the i386-windows build")
+        }
+    }
+
     func testRemoveGamePatchDeletesRosettax87Leftovers() throws {
         let gameURL = try makeTemporaryDirectory()
         try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
