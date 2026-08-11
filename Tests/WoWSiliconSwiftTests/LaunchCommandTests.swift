@@ -27,6 +27,41 @@ final class LaunchCommandTests: XCTestCase {
         )
     }
 
+    func testMakeShellCommandWithD9mtRendererDropsMoltenVKVars() {
+        var settings = VersionSettings()
+        settings.renderer = .d9mt
+        let command = LaunchService.makeShellCommand(
+            gamePath: "/Games/WoW",
+            executablePath: "/Games/WoW/WoW.exe",
+            wineBinaryPath: "/rt/bin/wine",
+            rosettaLoaderPath: nil,
+            winePrefixPath: "/prefix",
+            settings: settings
+        )
+
+        XCTAssertFalse(command.contains("MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"))
+        XCTAssertFalse(command.contains("DXVK_ASYNC"))
+        XCTAssertTrue(command.contains("D9MT_METALLIB_CACHE=1"))
+        XCTAssertTrue(command.contains("D9MT_ASYNC=1"))
+        XCTAssertTrue(command.contains(#"WINEDLLOVERRIDES="d3d9=n,b;mscoree=d;mshtml=d""#))
+    }
+
+    func testMakeShellCommandWithD9vkRendererKeepsCurrentEnv() {
+        let settings = VersionSettings() // default .d9vk
+        let command = LaunchService.makeShellCommand(
+            gamePath: "/Games/WoW",
+            executablePath: "/Games/WoW/WoW.exe",
+            wineBinaryPath: "/rt/bin/wine",
+            rosettaLoaderPath: nil,
+            winePrefixPath: "/prefix",
+            settings: settings
+        )
+
+        XCTAssertTrue(command.contains("MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1"))
+        XCTAssertTrue(command.contains("DXVK_ASYNC=1"))
+        XCTAssertFalse(command.contains("D9MT_"))
+    }
+
     func testNilLoaderOmitsRosettaX87Path() {
         let command = LaunchService.makeShellCommand(
             gamePath: "/Games/WoW Classic",
