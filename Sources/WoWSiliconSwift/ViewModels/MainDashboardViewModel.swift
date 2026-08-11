@@ -563,6 +563,51 @@ final class MainDashboardViewModel: ObservableObject {
         )
     }
 
+    /// True when Xcode CLT's Metal toolchain resolves — d9mt compiles MSL to
+    /// metallib via `metal` at runtime, so the renderer is gated on this.
+    /// Nonisolated and synchronous: it spawns `xcrun` and blocks on its exit.
+    nonisolated static func isMetalToolchainAvailable() -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        process.arguments = ["-f", "metal"]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
+    /// Renderer picker binding. Selecting d9mt without the Metal toolchain
+    /// refuses the change and surfaces a feedback alert; a persisted change
+    /// re-stages the game patch so the new renderer's payload lands before the
+    /// next launch.
+    func rendererBinding() -> Binding<RendererBackend> {
+        Binding(
+            get: { self.versionManager.currentVersion?.settings.renderer ?? .d9vk },
+            set: { newValue in
+                if newValue == .d9mt && !Self.isMetalToolchainAvailable() {
+                    self.patchFeedback = PatchFeedback(
+                        title: "Metal Toolchain Required",
+                        message: "The d9mt renderer needs the Xcode command line tools to compile shaders. Run `xcode-select --install`, then try again.",
+                        isError: true
+                    )
+                    return
+                }
+                let oldValue = self.versionManager.currentVersion?.settings.renderer
+                self.updateCurrentVersion { $0.settings.renderer = newValue }
+                // Fire the transition only when a persisted value actually changed
+                // (updateCurrentVersion silently no-ops with no current version).
+                guard let oldValue, oldValue != newValue,
+                      self.versionManager.currentVersion?.settings.renderer == newValue else { return }
+                self.patchGame()
+            }
+        )
+    }
+
     func graphicsSettingsBinding() -> Binding<GraphicsSettings> {
         Binding(
             get: {
