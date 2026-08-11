@@ -244,7 +244,17 @@ final class LaunchService: @unchecked Sendable {
         // runtime restaged into the nested game .app that derives to a nonexistent
         // Contents/bin — so the WINESERVER fallback has to be pinned.
         let wineserverPath = (wineBinaryPath as NSString).deletingLastPathComponent + "/wineserver"
-        let baseEnv = "WINEDLLOVERRIDES=\"\(dllOverrides)\" MTL_HUD_ENABLED=\(mtlValue) MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1 WINEMSYNC=\(msyncValue) WINESERVER=\(doubleQuote(wineserverPath))"
+        // Renderer-specific env: d9vk runs on MoltenVK and needs the sync-submit /
+        // async flags; d9mt talks to Metal directly and takes its own toggles
+        // (both default on upstream; set explicitly for clarity).
+        let rendererEnv: String
+        switch settings.renderer {
+        case .d9vk:
+            rendererEnv = "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
+        case .d9mt:
+            rendererEnv = "D9MT_METALLIB_CACHE=1 D9MT_ASYNC=1"
+        }
+        let baseEnv = "WINEDLLOVERRIDES=\"\(dllOverrides)\" MTL_HUD_ENABLED=\(mtlValue) \(rendererEnv) WINEMSYNC=\(msyncValue) WINESERVER=\(doubleQuote(wineserverPath))"
         let custom = settings.environmentVariables
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: ";", with: " ")
