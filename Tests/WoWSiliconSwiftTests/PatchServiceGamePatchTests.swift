@@ -40,6 +40,51 @@ final class PatchServiceGamePatchTests: XCTestCase {
         XCTAssertTrue(dlls.contains("mods/winerosetta.dll"))
     }
 
+    func testStageGamePatchFilesWithD9mtStagesD9mtD3d9() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9mt") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-d9mt)"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .d9mt
+
+        try PatchService.stageGamePatchFiles(for: version)
+
+        let staged = try Data(contentsOf: gameURL.appendingPathComponent("d3d9.dll"))
+        let bundled = try Data(contentsOf: PatchService.resourceURL(
+            named: "d3d9", extension: "dll", subdirectory: "Patching/d9mt")!)
+        XCTAssertEqual(staged, bundled)
+    }
+
+    func testStageGamePatchFilesSwitchingBackToD9vkRestoresD9vkDll() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9mt") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-d9mt)"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .d9mt
+        try PatchService.stageGamePatchFiles(for: version)
+
+        version.settings.renderer = .d9vk
+        try PatchService.stageGamePatchFiles(for: version)
+
+        let staged = try Data(contentsOf: gameURL.appendingPathComponent("d3d9.dll"))
+        let bundled = try Data(contentsOf: PatchService.resourceURL(
+            named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk")!)
+        XCTAssertEqual(staged, bundled)
+    }
+
     func testRemoveGamePatchDeletesRosettax87Leftovers() throws {
         let gameURL = try makeTemporaryDirectory()
         try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
