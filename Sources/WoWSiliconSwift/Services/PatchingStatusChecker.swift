@@ -171,7 +171,7 @@ enum PatchingStatusChecker {
                 relativePath: "d3d9.dll",
                 resourceName: "d3d9",
                 resourceExtension: "dll",
-                resourceSubdirectory: "Patching/d9vk",
+                resourceSubdirectory: version.settings.renderer == .d9mt ? "Patching/d9mt" : "Patching/d9vk",
                 displayName: "d3d9.dll"
             )
         ]
