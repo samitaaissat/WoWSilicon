@@ -47,7 +47,16 @@ RUNTIME_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runt
 RUNTIME_SHA256 ?= 1ee361ac913301cb3a771f91f159fcc088be7edb2bfd16368feba95bcf37dfed
 RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
-.PHONY: all build debug run bundle fetch-runtime dmg appcast clean app_icon
+# d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to the
+# runtime-v$(RUNTIME_VERSION) release page). Bump all three pins together.
+D9MT_VERSION ?= 1
+D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
+D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(D9MT_ASSET)
+D9MT_SHA256 ?= 9ab09e6544b05557e846f56be87b99c34149311793adb17e38c289f8e4e380df
+D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
+D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
+
+.PHONY: all build debug run bundle fetch-runtime fetch-d9mt dmg appcast clean app_icon
 
 all: bundle
 
@@ -67,7 +76,7 @@ run: bundle
 	@echo "Launching $(APP_NAME).app..."
 	open "$(APP_BUNDLE)"
 
-bundle: build fetch-runtime
+bundle: build fetch-runtime fetch-d9mt
 	@$(MAKE) app_icon
 	@echo "Staging $(APP_NAME).app..."
 	@rm -rf "$(APP_BUNDLE)"
@@ -100,6 +109,14 @@ bundle: build fetch-runtime
 	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/lib" "$(GAME_APP)/Contents/lib"
 	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/share" "$(GAME_APP)/Contents/share"
 	@ditto "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/VERSION" "$(GAME_APP)/Contents/VERSION"
+	@# d9mt renderer support: winemetal/d9mtmetal as wine builtins. The .so must
+	@# sit next to the PE in the arch dirs for wine's find_builtin_dll pairing.
+	@ditto "$(D9MT_RESOURCES)/winemetal/i386-windows/winemetal.dll" "$(GAME_APP)/Contents/lib/wine/i386-windows/winemetal.dll"
+	@ditto "$(D9MT_RESOURCES)/winemetal/x86_64-windows/winemetal.dll" "$(GAME_APP)/Contents/lib/wine/x86_64-windows/winemetal.dll"
+	@ditto "$(D9MT_RESOURCES)/winemetal/x86_64-unix/winemetal.so" "$(GAME_APP)/Contents/lib/wine/x86_64-unix/winemetal.so"
+	@ditto "$(D9MT_RESOURCES)/d9mtmetal/i386-windows/d9mtmetal.dll" "$(GAME_APP)/Contents/lib/wine/i386-windows/d9mtmetal.dll"
+	@ditto "$(D9MT_RESOURCES)/d9mtmetal/x86_64-windows/d9mtmetal.dll" "$(GAME_APP)/Contents/lib/wine/x86_64-windows/d9mtmetal.dll"
+	@ditto "$(D9MT_RESOURCES)/d9mtmetal/x86_64-unix/d9mtmetal.so" "$(GAME_APP)/Contents/lib/wine/x86_64-unix/d9mtmetal.so"
 	@# Wine execs the rosettax87 loader as argv[0] for i386 images
 	@# (dlls/ntdll/unix/loader.c). Bundle identity is re-resolved on exec, so the
 	@# loader — and the libRuntimeRosettax87 it locates via its own directory —
@@ -163,6 +180,24 @@ fetch-runtime:
 		test -x "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/wine/bin/wine"; \
 		printf '%s' "$(RUNTIME_SHA256)" > "$(RUNTIME_CACHE)/$(RUNTIME_VERSION)/.sha256"; \
 		echo "Wine runtime v$(RUNTIME_VERSION) extracted to $(RUNTIME_CACHE)/$(RUNTIME_VERSION)"; \
+	fi
+
+fetch-d9mt:
+	@if [ -f "$(D9MT_RESOURCES)/.sha256" ] \
+		&& [ "$$(cat "$(D9MT_RESOURCES)/.sha256")" = "$(D9MT_SHA256)" ]; then \
+		echo "d9mt payload v$(D9MT_VERSION) already staged"; \
+	else \
+		set -e; \
+		echo "Fetching d9mt payload v$(D9MT_VERSION) from $(D9MT_URL)..."; \
+		mkdir -p "$(D9MT_CACHE)"; \
+		curl -fL --retry 3 -o "$(D9MT_CACHE)/$(D9MT_ASSET)" "$(D9MT_URL)"; \
+		echo "$(D9MT_SHA256)  $(D9MT_CACHE)/$(D9MT_ASSET)" | shasum -a 256 -c -; \
+		rm -rf "$(D9MT_RESOURCES)"; \
+		mkdir -p "$(D9MT_RESOURCES)"; \
+		tar -xzf "$(D9MT_CACHE)/$(D9MT_ASSET)" -C "$(D9MT_RESOURCES)" --strip-components=1; \
+		test -s "$(D9MT_RESOURCES)/d3d9.dll"; \
+		printf '%s' "$(D9MT_SHA256)" > "$(D9MT_RESOURCES)/.sha256"; \
+		echo "d9mt payload v$(D9MT_VERSION) staged into $(D9MT_RESOURCES)"; \
 	fi
 
 dmg: bundle
