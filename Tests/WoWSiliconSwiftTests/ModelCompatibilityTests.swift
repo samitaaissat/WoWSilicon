@@ -79,4 +79,19 @@ final class ModelCompatibilityTests: XCTestCase {
         let roundTripped = try JSONDecoder().decode(GameVersion.self, from: reencoded)
         XCTAssertEqual(roundTripped.crossOverPath, "/Applications/CrossOver.app")
     }
+
+    func testVersionSettingsWithoutRendererDecodesToD9vk() throws {
+        let json = #"{"enableMetalHud":true}"#.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(VersionSettings.self, from: json)
+        XCTAssertEqual(settings.renderer, .d9vk)
+        XCTAssertTrue(settings.enableMetalHud)
+    }
+
+    func testVersionSettingsRendererRoundTrip() throws {
+        var settings = VersionSettings()
+        settings.renderer = .d9mt
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(VersionSettings.self, from: data)
+        XCTAssertEqual(decoded.renderer, .d9mt)
+    }
 }
