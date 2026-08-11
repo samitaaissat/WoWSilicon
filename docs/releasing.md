@@ -98,6 +98,11 @@ The app pins the runtime it bundles in the `Makefile`:
 
 `make fetch-runtime` downloads the tarball to `.build/runtime-cache/` (skipped
 when cached with a matching checksum), verifies `RUNTIME_SHA256`, and extracts
-it; `make bundle` then copies the runtime into
-`WoWSilicon.app/Contents/SharedSupport/wine` before codesigning. To move the
-app to a new runtime, update all three pins in the same commit and rebuild.
+it; `make bundle` then stages the runtime as the nested
+`WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app` — wine's `bin/`
+becomes `Contents/MacOS` (plus the rosettax87 loader pair), `lib/` and `share/`
+sit beside it, and a generated Info.plist declares the games category and Game
+Mode keys — before codesigning. That geometry is what lets macOS Game Mode
+recognise the game process; keep executables directly in `Contents/MacOS`. To
+move the app to a new runtime, update all three pins in the same commit and
+rebuild.

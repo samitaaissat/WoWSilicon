@@ -87,13 +87,33 @@ enum PatchService {
         return gameURL
     }
 
+    /// Environment for the DivxDecoder rundll32 invocation. Built on
+    /// makeWineEnvironment so it carries the WINESERVER pin (wine cannot
+    /// autostart a server under the nested game .app layout without it) and a
+    /// WINEMSYNC value consistent with every other invocation on the shared
+    /// prefix, then overlays the patching-specific overrides.
+    static func makeDivxPatchEnvironment(
+        prefixURL: URL,
+        wineExecutable: String,
+        enableMsync: Bool = WineRegistrySupport.msyncEnabled
+    ) -> [String: String] {
+        var env = WineRegistrySupport.makeWineEnvironment(
+            prefixURL: prefixURL,
+            wineExecutable: wineExecutable,
+            enableMsync: enableMsync
+        )
+        env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree=d;mshtml=d"
+        env["WINEDEBUG"] = "-all"
+        return env
+    }
+
     private static func patchDivxDecoder(gameURL: URL) throws {
         let wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
 
-        var env = ProcessInfo.processInfo.environment
-        env["WINEDLLOVERRIDES"] = "winemenubuilder.exe=d;mscoree=d;mshtml=d"
-        env["WINEDEBUG"] = "-all"
-        env["WINEPREFIX"] = WineRegistrySupport.winePrefixURL().path
+        let env = makeDivxPatchEnvironment(
+            prefixURL: WineRegistrySupport.winePrefixURL(),
+            wineExecutable: wineBinaryURL.path
+        )
 
         let patches: [(entry: String, file: String)] = [
             ("PatchDivxDecoder", "DivxDecoder.dll"),

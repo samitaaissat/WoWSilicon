@@ -4,6 +4,7 @@ struct UserPrefs: Codable, Equatable {
     var remapOptionAsAlt: Bool
     var showTerminalNormally: Bool
     var enableMetalHud: Bool
+    var enableMsync: Bool
     var enableVanillaTweaks: Bool
     var autoDeleteWdb: Bool
     var telemetryEnabled: Bool
@@ -16,6 +17,7 @@ struct UserPrefs: Codable, Equatable {
         remapOptionAsAlt: false,
         showTerminalNormally: false,
         enableMetalHud: false,
+        enableMsync: false,
         enableVanillaTweaks: false,
         autoDeleteWdb: true,
         telemetryEnabled: false,
@@ -29,6 +31,7 @@ struct UserPrefs: Codable, Equatable {
         case remapOptionAsAlt = "remap_option_as_alt"
         case showTerminalNormally = "show_terminal_normally"
         case enableMetalHud = "enable_metal_hud"
+        case enableMsync = "enable_msync"
         case enableVanillaTweaks = "enable_vanilla_tweaks"
         case autoDeleteWdb = "auto_delete_wdb"
         case telemetryEnabled = "telemetry_enabled"
@@ -42,6 +45,7 @@ struct UserPrefs: Codable, Equatable {
         remapOptionAsAlt: Bool = false,
         showTerminalNormally: Bool = false,
         enableMetalHud: Bool = false,
+        enableMsync: Bool = false,
         enableVanillaTweaks: Bool = false,
         autoDeleteWdb: Bool = true,
         telemetryEnabled: Bool = false,
@@ -53,6 +57,7 @@ struct UserPrefs: Codable, Equatable {
         self.remapOptionAsAlt = remapOptionAsAlt
         self.showTerminalNormally = showTerminalNormally
         self.enableMetalHud = enableMetalHud
+        self.enableMsync = enableMsync
         self.enableVanillaTweaks = enableVanillaTweaks
         self.autoDeleteWdb = autoDeleteWdb
         self.telemetryEnabled = telemetryEnabled
@@ -67,6 +72,7 @@ struct UserPrefs: Codable, Equatable {
         remapOptionAsAlt = try container.decodeIfPresent(Bool.self, forKey: .remapOptionAsAlt) ?? false
         showTerminalNormally = try container.decodeIfPresent(Bool.self, forKey: .showTerminalNormally) ?? false
         enableMetalHud = try container.decodeIfPresent(Bool.self, forKey: .enableMetalHud) ?? false
+        enableMsync = try container.decodeIfPresent(Bool.self, forKey: .enableMsync) ?? false
         enableVanillaTweaks = try container.decodeIfPresent(Bool.self, forKey: .enableVanillaTweaks) ?? false
         autoDeleteWdb = try container.decodeIfPresent(Bool.self, forKey: .autoDeleteWdb) ?? true
         telemetryEnabled = try container.decodeIfPresent(Bool.self, forKey: .telemetryEnabled) ?? false

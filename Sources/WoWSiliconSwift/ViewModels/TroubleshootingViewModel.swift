@@ -42,7 +42,8 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
 
             let runtime = WineRuntime.shared
             let version = runtime.runtimeVersion ?? "Not found"
-            let rosetta = runtime.rosettaLoaderURL != nil ? "ok" : "missing"
+            // rosettaLoaderURL is a constructed path (never nil) — probe the file.
+            let rosetta = (try? runtime.validatedRosettaLoaderURL()) != nil ? "ok" : "missing"
             let storageDescription = PortableStorage.shared.displayDescription
 
             // Capture current toggle states

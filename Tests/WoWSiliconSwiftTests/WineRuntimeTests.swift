@@ -16,9 +16,11 @@ final class WineRuntimeTests: XCTestCase {
         let bundleURL = URL(fileURLWithPath: "/Applications/WoWSilicon.app", isDirectory: true)
         let runtime = WineRuntime(bundleURL: bundleURL)
 
-        XCTAssertEqual(runtime.runtimeRootURL.path, "/Applications/WoWSilicon.app/Contents/SharedSupport/wine")
-        XCTAssertEqual(runtime.wineBinaryURL.path, "/Applications/WoWSilicon.app/Contents/SharedSupport/wine/bin/wine")
-        XCTAssertEqual(runtime.wineserverBinaryURL.path, "/Applications/WoWSilicon.app/Contents/SharedSupport/wine/bin/wineserver")
+        let gameApp = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app"
+        XCTAssertEqual(runtime.gameAppURL.path, gameApp)
+        XCTAssertEqual(runtime.runtimeRootURL.path, "\(gameApp)/Contents")
+        XCTAssertEqual(runtime.wineBinaryURL.path, "\(gameApp)/Contents/MacOS/wine")
+        XCTAssertEqual(runtime.wineserverBinaryURL.path, "\(gameApp)/Contents/MacOS/wineserver")
     }
 
     func testValidatedWineBinaryURLThrowsWineBinaryMissingWhenAbsent() throws {

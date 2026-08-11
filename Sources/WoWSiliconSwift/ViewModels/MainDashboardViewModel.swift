@@ -146,6 +146,10 @@ final class MainDashboardViewModel: ObservableObject {
         newVersion.launcherExePath = ""
         versionManager.versions[newID] = newVersion
         versionManager.setCurrentVersion(id: newID)
+        // Like selectVersion: stamp the global prefs onto the fresh version BEFORE
+        // refreshSnapshot's syncLegacyPrefs runs, or the new version's defaults
+        // (e.g. enableMsync=false) silently overwrite the user's saved prefs.
+        applyLegacyPrefsToVersion()
         persistVersionManager()
         refreshSnapshot()
         refreshOptionAsAltStatus()
@@ -159,6 +163,9 @@ final class MainDashboardViewModel: ObservableObject {
         versionManager.versions.removeValue(forKey: id)
         if versionManager.currentVersionID == id {
             versionManager.currentVersionID = VersionManager.defaultCurrentVersionID
+            // The fallback version's stored settings may be stale; align them with
+            // the global prefs before syncLegacyPrefs mirrors them back (see addVersion).
+            applyLegacyPrefsToVersion()
         }
         persistVersionManager()
         refreshSnapshot()
@@ -530,6 +537,27 @@ final class MainDashboardViewModel: ObservableObject {
             set: { newValue in
                 self.updateCurrentVersion { version in
                     version.settings[keyPath: keyPath] = newValue
+                }
+            }
+        )
+    }
+
+    /// Like `boolBinding(\.enableMsync)`, plus the transition the setting needs:
+    /// msync is latched by the running wineserver, and a client whose WINEMSYNC
+    /// disagrees with it exits(1) — so a surviving server must be shut down when
+    /// the value changes, letting the next Wine invocation start a fresh one.
+    func msyncBinding() -> Binding<Bool> {
+        Binding(
+            get: { self.versionManager.currentVersion?.settings.enableMsync ?? false },
+            set: { newValue in
+                let oldValue = self.versionManager.currentVersion?.settings.enableMsync
+                self.updateCurrentVersion { $0.settings.enableMsync = newValue }
+                // Fire the transition only when a persisted value actually changed
+                // (updateCurrentVersion silently no-ops with no current version).
+                guard let oldValue, oldValue != newValue,
+                      self.versionManager.currentVersion?.settings.enableMsync == newValue else { return }
+                DispatchQueue.global(qos: .userInitiated).async {
+                    LaunchService.shutdownWineserverForMsyncTransition()
                 }
             }
         )
@@ -1040,6 +1068,7 @@ final class MainDashboardViewModel: ObservableObject {
         versionManager.updateCurrentVersion { version in
             version.settings.showTerminalNormally = userPrefs.showTerminalNormally
             version.settings.enableMetalHud = userPrefs.enableMetalHud
+            version.settings.enableMsync = userPrefs.enableMsync
             if version.supportsVanillaTweaks {
                 version.settings.enableVanillaTweaks = userPrefs.enableVanillaTweaks
             } else {
@@ -1135,6 +1164,7 @@ final class MainDashboardViewModel: ObservableObject {
         var updated = userPrefs
         updated.showTerminalNormally = settings.showTerminalNormally
         updated.enableMetalHud = settings.enableMetalHud
+        updated.enableMsync = settings.enableMsync
         updated.enableVanillaTweaks = settings.enableVanillaTweaks
         updated.autoDeleteWdb = true
         updated.remapOptionAsAlt = settings.remapOptionAsAlt

@@ -24,6 +24,8 @@ final class ModelCompatibilityTests: XCTestCase {
         XCTAssertFalse(prefs.autoDeleteWdb)
         XCTAssertEqual(prefs.environmentVariables, "A=B")
         XCTAssertEqual(prefs.vanillaTweaksParameters, "--flag")
+        // Added in 3.1: absent from every pre-existing prefs.json.
+        XCTAssertFalse(prefs.enableMsync)
     }
 
     func testVersionSettingsDecodesFilesContainingRemovedSaveSudoPasswordKey() throws {
@@ -43,6 +45,8 @@ final class ModelCompatibilityTests: XCTestCase {
         XCTAssertTrue(settings.showTerminalNormally)
         XCTAssertEqual(settings.cursorSizeMultiplier, 4)
         XCTAssertTrue(settings.enableLibSiliconPatch)
+        // Added in 3.1: absent from every pre-existing versions.json.
+        XCTAssertFalse(settings.enableMsync)
     }
 
     func testGameVersionDecodesAndRoundTripsV2CrossOverPath() throws {
