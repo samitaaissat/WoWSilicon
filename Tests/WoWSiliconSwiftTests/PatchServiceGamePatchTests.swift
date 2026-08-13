@@ -136,6 +136,54 @@ final class PatchServiceGamePatchTests: XCTestCase {
         }
     }
 
+    func testStageGamePatchFilesWithWineD3DRemovesNativeD3d9() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil,
+            "Bundled patch resources not resolvable under swift test"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+
+        // Start from a d9vk-staged folder: the native d3d9.dll is present...
+        var version = makeVersion(gameURL: gameURL)
+        try PatchService.stageGamePatchFiles(for: version)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("d3d9.dll").path))
+
+        // ...and switching to wined3d must delete it (the builtin d3d9 takes over)
+        // while leaving the rest of the payload staged.
+        version.settings.renderer = .wined3d
+        try PatchService.stageGamePatchFiles(for: version)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("d3d9.dll").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("mods/winerosetta.dll").path))
+    }
+
+    func testStageGamePatchFilesSwitchingFromWineD3DBackToD9vkRestoresD3d9() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil,
+            "Bundled patch resources not resolvable under swift test"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .wined3d
+        try PatchService.stageGamePatchFiles(for: version)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("d3d9.dll").path))
+
+        version.settings.renderer = .d9vk
+        try PatchService.stageGamePatchFiles(for: version)
+
+        let staged = try Data(contentsOf: gameURL.appendingPathComponent("d3d9.dll"))
+        let bundled = try Data(contentsOf: PatchService.resourceURL(
+            named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk")!)
+        XCTAssertEqual(staged, bundled)
+    }
+
     func testRemoveGamePatchDeletesRosettax87Leftovers() throws {
         let gameURL = try makeTemporaryDirectory()
         try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))

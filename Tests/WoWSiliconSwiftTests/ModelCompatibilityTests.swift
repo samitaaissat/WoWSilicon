@@ -94,4 +94,22 @@ final class ModelCompatibilityTests: XCTestCase {
         let decoded = try JSONDecoder().decode(VersionSettings.self, from: data)
         XCTAssertEqual(decoded.renderer, .d9mt)
     }
+
+    func testVersionSettingsWineD3DRendererRoundTrip() throws {
+        var settings = VersionSettings()
+        settings.renderer = .wined3d
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(VersionSettings.self, from: data)
+        XCTAssertEqual(decoded.renderer, .wined3d)
+    }
+
+    /// Rollback safety: a versions.json written by a newer build with a renderer
+    /// this build doesn't know must decode (falling back to d9vk), not fail the
+    /// whole load and reset the user's versions.
+    func testVersionSettingsUnknownRendererFallsBackToD9vk() throws {
+        let json = #"{"renderer":"metal4d","enableMetalHud":true}"#.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(VersionSettings.self, from: json)
+        XCTAssertEqual(settings.renderer, .d9vk)
+        XCTAssertTrue(settings.enableMetalHud)
+    }
 }

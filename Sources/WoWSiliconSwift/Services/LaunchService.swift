@@ -230,10 +230,15 @@ final class LaunchService: @unchecked Sendable {
         rosettaLoaderPath: String?,
         winePrefixPath: String,
         settings: VersionSettings,
-        dllOverrides: String = "d3d9=n,b;mscoree=d;mshtml=d",
+        dllOverrides: String = "mscoree=d;mshtml=d",
         extraArguments: [String] = []
     ) -> String {
         let mtlValue = settings.enableMetalHud ? "1" : "0"
+        // The d3d9 disposition belongs to the renderer, not the call site: d9vk and
+        // d9mt stage a native d3d9.dll into the game folder (native first, builtin
+        // fallback for exes launched from folders without one); wined3d must load
+        // the builtin even when a stray native d3d9.dll is left behind.
+        let d3d9Override = settings.renderer == .wined3d ? "d3d9=b" : "d3d9=n,b"
         // Pinned explicitly, never omitted: msync is compiled into the bundled
         // runtime and gated on atoi(getenv("WINEMSYNC")), and a client that
         // disagrees with the running wineserver calls exit(1). Emitting 0 keeps an
@@ -246,15 +251,24 @@ final class LaunchService: @unchecked Sendable {
         let wineserverPath = (wineBinaryPath as NSString).deletingLastPathComponent + "/wineserver"
         // Renderer-specific env: d9vk runs on MoltenVK and needs the sync-submit /
         // async flags; d9mt talks to Metal directly and takes its own toggles
-        // (both default on upstream; set explicitly for clarity).
+        // (both default on upstream; set explicitly for clarity). wined3d presents
+        // through MoltenVK like d9vk (same sync-submit rationale) but DXVK_ASYNC is
+        // meaningless to it; WINE_D3D_CONFIG selects its Vulkan renderer per launch
+        // (overrides any registry value) — mandatory, not tuning, because the
+        // GL-less runtime resolves the AUTO renderer to the no-3D GDI fallback
+        // (fake "GeForce 6800" adapter, black screen in-game). Env instead of a
+        // prefix registry pin: the renderer choice is per-version while the prefix
+        // is shared, and env survives prefix rebuilds.
         let rendererEnv: String
         switch settings.renderer {
         case .d9vk:
             rendererEnv = "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
         case .d9mt:
             rendererEnv = "D9MT_METALLIB_CACHE=1 D9MT_ASYNC=1"
+        case .wined3d:
+            rendererEnv = "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 WINE_D3D_CONFIG=\"renderer=vulkan\""
         }
-        let baseEnv = "WINEDLLOVERRIDES=\"\(dllOverrides)\" MTL_HUD_ENABLED=\(mtlValue) \(rendererEnv) WINEMSYNC=\(msyncValue) WINESERVER=\(doubleQuote(wineserverPath))"
+        let baseEnv = "WINEDLLOVERRIDES=\"\(d3d9Override);\(dllOverrides)\" MTL_HUD_ENABLED=\(mtlValue) \(rendererEnv) WINEMSYNC=\(msyncValue) WINESERVER=\(doubleQuote(wineserverPath))"
         let custom = settings.environmentVariables
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: ";", with: " ")
@@ -320,7 +334,7 @@ final class LaunchService: @unchecked Sendable {
             rosettaLoaderPath: rosettaLoaderPath,
             winePrefixPath: winePrefixPath,
             settings: settings,
-            dllOverrides: "d3d9=n,b;mscoree=b;mshtml=d",
+            dllOverrides: "mscoree=b;mshtml=d",
             extraArguments: launcherChromiumArguments
         )
     }
