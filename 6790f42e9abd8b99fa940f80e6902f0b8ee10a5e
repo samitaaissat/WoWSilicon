@@ -1,0 +1,102 @@
+{
+    "version": "0.1.0",
+    "id": "04d2c22c-63fe-44b1-aacc-38cdd89e08f3",
+    "timestamp": "2026-08-13T20:05:49.458917Z",
+    "vcs": {
+        "type": "git",
+        "revision": "6790f42e9abd8b99fa940f80e6902f0b8ee10a5e",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:3dceb8a0eb3a280a53bc36f6d3ab696f148d90c5",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.227"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 52,
+                            "end_line": 52
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 55
+                        },
+                        {
+                            "start_line": 83,
+                            "end_line": 86
+                        },
+                        {
+                            "start_line": 90,
+                            "end_line": 91
+                        },
+                        {
+                            "start_line": 199,
+                            "end_line": 200
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/releasing.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:3dceb8a0eb3a280a53bc36f6d3ab696f148d90c5",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.227"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 117,
+                            "end_line": 122
+                        },
+                        {
+                            "start_line": 126,
+                            "end_line": 126
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/d9mt/build-payload.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:3dceb8a0eb3a280a53bc36f6d3ab696f148d90c5",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.227"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 3,
+                            "end_line": 5
+                        },
+                        {
+                            "start_line": 19,
+                            "end_line": 20
+                        },
+                        {
+                            "start_line": 22,
+                            "end_line": 22
+                        },
+                        {
+                            "start_line": 47,
+                            "end_line": 47
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
