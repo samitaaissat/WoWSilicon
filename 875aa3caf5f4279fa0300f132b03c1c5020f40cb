@@ -1,0 +1,52 @@
+{
+    "version": "0.1.0",
+    "id": "67c8233e-5e2f-46f7-a84a-7e9ff316d421",
+    "timestamp": "2026-08-13T14:48:16.520491Z",
+    "vcs": {
+        "type": "git",
+        "revision": "875aa3caf5f4279fa0300f132b03c1c5020f40cb",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Views/OptionsView.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:fd388066ebf259749544a829b5da3f0904c7b459",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.228"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 87,
+                            "end_line": 87
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/superpowers/specs/2026-08-11-d9mt-renderer-design.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:fd388066ebf259749544a829b5da3f0904c7b459",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.228"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 64,
+                            "end_line": 67
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
