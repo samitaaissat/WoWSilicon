@@ -49,10 +49,10 @@ RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
 # d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to the
 # runtime-v$(RUNTIME_VERSION) release page). Bump all three pins together.
-D9MT_VERSION ?= 1
+D9MT_VERSION ?= 2
 D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
 D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(D9MT_ASSET)
-D9MT_SHA256 ?= 9ab09e6544b05557e846f56be87b99c34149311793adb17e38c289f8e4e380df
+D9MT_SHA256 ?= 4b6ef9398be217a77818c3f66184c17d8cda166ad9ef86b69bdb8b253c2f028d
 D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
 D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
 
@@ -80,9 +80,15 @@ run: bundle
 # from Sources/, so a payload fetched afterwards never enters it — on a fresh
 # checkout that shipped an app without Patching/d9mt (v3.2.0 regression). The
 # guard below makes any recurrence a hard build error instead of a broken DMG.
+# It also pins the staged payload VERSION: under `make -j` the phony
+# prerequisites run concurrently, so a warm .build can keep an older payload
+# in the resource bundle while the pins claim a newer one — the .sha256 stamp
+# (copied into the bundle beside the payload) must match D9MT_SHA256.
 bundle: fetch-runtime fetch-d9mt build
 	@test -s "$(RESOURCE_BUNDLE)/Patching/d9mt/d3d9.dll" && test -s "$(RESOURCE_BUNDLE)/Patching/d9vk/d3d9.dll" \
 		|| (echo "error: $(RESOURCE_BUNDLE) is missing renderer payloads (stale build preceded fetch-d9mt?); run 'swift build' again or 'make clean'" >&2; exit 1)
+	@test "$$(cat "$(RESOURCE_BUNDLE)/Patching/d9mt/.sha256" 2>/dev/null)" = "$(D9MT_SHA256)" \
+		|| (echo "error: $(RESOURCE_BUNDLE) has a stale d9mt payload (stamp != D9MT_SHA256; parallel make or stale .build?); run 'swift build' again or 'make clean'" >&2; exit 1)
 	@$(MAKE) app_icon
 	@echo "Staging $(APP_NAME).app..."
 	@rm -rf "$(APP_BUNDLE)"
@@ -190,7 +196,8 @@ fetch-runtime:
 
 fetch-d9mt:
 	@if [ -f "$(D9MT_RESOURCES)/.sha256" ] \
-		&& [ "$$(cat "$(D9MT_RESOURCES)/.sha256")" = "$(D9MT_SHA256)" ]; then \
+		&& [ "$$(cat "$(D9MT_RESOURCES)/.sha256")" = "$(D9MT_SHA256)" ] \
+		&& [ -s "$(D9MT_RESOURCES)/d3d9.dll" ]; then \
 		echo "d9mt payload v$(D9MT_VERSION) already staged"; \
 	else \
 		set -e; \

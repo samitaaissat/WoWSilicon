@@ -114,9 +114,16 @@ The optional d9mt renderer payload (`d9mt-<n>.tar.gz`: `d3d9.dll` plus the
 `tools/d9mt/build-payload.sh` and uploaded as an extra asset on the
 `runtime-v<n>` release page — it has no tag or workflow of its own.
 
+Since payload v2 the d9mt sources come from our fork
+[samitaaissat/d9mt](https://github.com/samitaaissat/d9mt) (branch
+`wowsilicon-depth-bias-fix`), which carries the depth-bias fix for projected
+textures clipping into terrain on top of the last pinned upstream
+(neo773/d9mt @ `237e2935`). New upstream work should be rebased into the fork
+branch and the `D9MT_COMMIT` pin in `build-payload.sh` bumped.
+
 The app pins it in the `Makefile` alongside the runtime pins:
 
-- `D9MT_VERSION` — the payload version (`1` for `d9mt-1.tar.gz`)
+- `D9MT_VERSION` — the payload version (`2` for `d9mt-2.tar.gz`)
 - `D9MT_SHA256` — the expected checksum of the tarball
 - `D9MT_URL` — the GitHub release asset URL
 
