@@ -61,6 +61,11 @@ When the user selects d9mt, the ViewModel checks that `xcrun -f metal` resolves 
 - Payload SHA mismatch → existing "outdated" status flow, parameterized by active renderer.
 - In-game d9mt failure (crash/artifacts) → out of app scope by design; the user switches the picker back, and the Troubleshooting re-apply path remains the recovery hatch.
 
+## Known limitations (verified 2026-08-12)
+
+- **MSAA → black screen.** With a multisampled backbuffer (`gxMultisample` > 1), d9mt's present blitter cannot handle the MSAA source in WoW's X8R8G8B8 format: Metal disallows swizzled views on MSAA textures (`createImageView: dropping swizzle on MSAA view`), the BGRX swizzle has no plain Metal format fallback (`blitter: MSAA present source has no plain Metal format — skipping`), and every present blit is skipped — the game runs (audio, login, Metal HUD) over a permanently black frame. Mitigation is documented, not coded: the picker caption and release notes tell users to disable MSAA both in the app's Graphics settings and in-game (in-game video options can rewrite `gxMultisample` behind the app). A real fix would be an upstream d9mt blitter change: resolve the MSAA backbuffer into a non-MSAA intermediate, then do the swizzle-aware blit (this is what DXVK does on the d9vk path).
+- **The CLT gate under-checks.** `xcrun -f metal` resolves even when the Metal Toolchain component is not installed (Xcode 26 ships it as a separate download; running `metal` then fails with "cannot execute tool 'metal' due to missing Metal Toolchain"). d9mt still renders because it compiles shaders at runtime via `newLibraryWithSource:`; only the optional metallib cache (`D9MT_METALLIB_CACHE`) silently fails.
+
 ## Testing
 
 - `ModelCompatibilityTests`: legacy `versions.json` without `renderer` decodes to `.d9vk`; encode/decode round-trip.
