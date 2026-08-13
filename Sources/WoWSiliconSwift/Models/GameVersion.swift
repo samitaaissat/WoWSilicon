@@ -174,10 +174,15 @@ struct GraphicsSettings: Codable, Equatable, Sendable {
 // MARK: - Version settings
 
 /// D3D9 translation backend staged into the game folder. d9vk (D3D9→Vulkan→MoltenVK)
-/// is the default; d9mt (D3D9→Metal, experimental) requires Xcode CLT at runtime.
+/// is the default; d9mt (D3D9→Metal, experimental) requires Xcode CLT at runtime;
+/// wined3d (experimental) is Wine's built-in D3D9 driven by its Vulkan renderer
+/// through the bundled MoltenVK — no d3d9.dll is staged, and the launch env must
+/// carry WINE_D3D_CONFIG="renderer=vulkan" (the bundled runtime is built
+/// --without-opengl, so wined3d's default GL renderer has no GPU path).
 enum RendererBackend: String, Codable, CaseIterable, Equatable, Sendable {
     case d9vk
     case d9mt
+    case wined3d
 }
 
 struct VersionSettings: Codable, Equatable, Sendable {
@@ -249,7 +254,15 @@ struct VersionSettings: Codable, Equatable, Sendable {
         cursorSizeMultiplier = try container.decodeIfPresent(Int.self, forKey: .cursorSizeMultiplier) ?? 1
         enableLibSiliconPatch = try container.decodeIfPresent(Bool.self, forKey: .enableLibSiliconPatch) ?? false
         userDisabledLibSiliconPatch = try container.decodeIfPresent(Bool.self, forKey: .userDisabledLibSiliconPatch) ?? false
-        renderer = try container.decodeIfPresent(RendererBackend.self, forKey: .renderer) ?? .d9vk
+        // Decoded through String: decodeIfPresent(RendererBackend.self) throws on
+        // an unknown raw value, so a versions.json written by a newer build (with
+        // a renderer this build doesn't know) would fail the whole decode and
+        // reset the user's versions on rollback. Unknown values fall back to d9vk.
+        if let rendererRaw = try container.decodeIfPresent(String.self, forKey: .renderer) {
+            renderer = RendererBackend(rawValue: rendererRaw) ?? .d9vk
+        } else {
+            renderer = .d9vk
+        }
 
         if let gs = try container.decodeIfPresent(GraphicsSettings.self, forKey: .graphicsSettings) {
             graphicsSettings = gs

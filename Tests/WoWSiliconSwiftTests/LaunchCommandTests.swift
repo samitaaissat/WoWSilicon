@@ -62,6 +62,85 @@ final class LaunchCommandTests: XCTestCase {
         XCTAssertFalse(command.contains("D9MT_"))
     }
 
+    func testMakeShellCommandWithWineD3DRendererForcesBuiltinD3D9() {
+        var settings = VersionSettings()
+        settings.renderer = .wined3d
+        let command = LaunchService.makeShellCommand(
+            gamePath: "/Games/WoW",
+            executablePath: "/Games/WoW/WoW.exe",
+            wineBinaryPath: "/rt/bin/wine",
+            rosettaLoaderPath: nil,
+            winePrefixPath: "/prefix",
+            settings: settings
+        )
+
+        // Builtin-only d3d9: a stray native d3d9.dll must never shadow wined3d.
+        XCTAssertTrue(command.contains(#"WINEDLLOVERRIDES="d3d9=b;mscoree=d;mshtml=d""#))
+        // MoltenVK is still the presentation path (same rationale as d9vk)...
+        XCTAssertTrue(command.contains("MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1"))
+        // ...but the DXVK/d9mt-specific toggles are meaningless to wined3d.
+        XCTAssertFalse(command.contains("DXVK_ASYNC"))
+        XCTAssertFalse(command.contains("D9MT_"))
+    }
+
+    /// The wined3d renderer is selected per-launch through WINE_D3D_CONFIG (env
+    /// beats the registry in wined3d_main.c, and env needs no prefix state):
+    /// full-string pin so the env block stays exactly as verified on hardware.
+    func testWineD3DCommandSelectsVulkanRendererViaEnvironment() {
+        var settings = VersionSettings()
+        settings.renderer = .wined3d
+        let command = LaunchService.makeShellCommand(
+            gamePath: "/Games/WoW",
+            executablePath: "/Games/WoW/WoW.exe",
+            wineBinaryPath: "/rt/bin/wine",
+            rosettaLoaderPath: nil,
+            winePrefixPath: "/prefix",
+            settings: settings
+        )
+
+        XCTAssertEqual(
+            command,
+            "cd \"/Games/WoW\" && " +
+            "WINEDLLOVERRIDES=\"d3d9=b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=0 " +
+            "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 WINE_D3D_CONFIG=\"renderer=vulkan\" " +
+            "WINEMSYNC=0 WINESERVER=\"/rt/bin/wineserver\" WINEPREFIX=\"/prefix\" " +
+            "\"/rt/bin/wine\" \"/Games/WoW/WoW.exe\""
+        )
+    }
+
+    /// The other renderers must not carry the wined3d selector: their native
+    /// d3d9.dll shadows the builtin, and a stray WINE_D3D_CONFIG would only
+    /// confuse debugging.
+    func testNonWineD3DCommandsDoNotSetWineD3DConfig() {
+        for renderer in [RendererBackend.d9vk, .d9mt] {
+            var settings = VersionSettings()
+            settings.renderer = renderer
+            let command = LaunchService.makeShellCommand(
+                gamePath: "/Games/WoW",
+                executablePath: "/Games/WoW/WoW.exe",
+                wineBinaryPath: "/rt/bin/wine",
+                rosettaLoaderPath: nil,
+                winePrefixPath: "/prefix",
+                settings: settings
+            )
+            XCTAssertFalse(command.contains("WINE_D3D_CONFIG"), "\(renderer) must not set WINE_D3D_CONFIG")
+        }
+    }
+
+    func testLauncherCommandWithWineD3DRendererForcesBuiltinD3D9() {
+        var settings = VersionSettings()
+        settings.renderer = .wined3d
+        let command = LaunchService.makeLauncherShellCommand(
+            exePath: "/Data/prefix/drive_c/Program Files/Launcher/Launcher.exe",
+            wineBinaryPath: winePath,
+            rosettaLoaderPath: loaderPath,
+            winePrefixPath: prefixPath,
+            settings: settings
+        )
+
+        XCTAssertTrue(command.contains("WINEDLLOVERRIDES=\"d3d9=b;mscoree=b;mshtml=d\""))
+    }
+
     func testNilLoaderOmitsRosettaX87Path() {
         let command = LaunchService.makeShellCommand(
             gamePath: "/Games/WoW Classic",

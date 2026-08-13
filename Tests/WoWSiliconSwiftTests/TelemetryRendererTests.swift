@@ -32,4 +32,9 @@ final class TelemetryRendererTests: XCTestCase {
         let context = TelemetryEventContext(version: nil)
         XCTAssertEqual(context.renderer, "d9vk")
     }
+
+    func testContextReportsWineD3DWhenVersionUsesWineD3D() {
+        let context = TelemetryEventContext(version: makeVersion(renderer: .wined3d))
+        XCTAssertEqual(context.renderer, "wined3d")
+    }
 }

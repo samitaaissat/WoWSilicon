@@ -597,6 +597,18 @@ final class MainDashboardViewModel: ObservableObject {
                     )
                     return
                 }
+                // patchGame() silently no-ops while an operation is in flight;
+                // persisting the new renderer anyway would leave the folder
+                // staged for the old one with no re-stage scheduled. Refuse
+                // instead, mirroring the toolchain gate above.
+                if self.isGameOperationInProgress {
+                    self.patchFeedback = PatchFeedback(
+                        title: "Renderer",
+                        message: "A patch operation is in progress. Wait for it to finish, then switch the renderer.",
+                        isError: true
+                    )
+                    return
+                }
                 let oldValue = self.versionManager.currentVersion?.settings.renderer
                 self.updateCurrentVersion { $0.settings.renderer = newValue }
                 // Fire the transition only when a persisted value actually changed

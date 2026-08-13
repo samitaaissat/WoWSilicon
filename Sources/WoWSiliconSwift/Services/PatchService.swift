@@ -33,6 +33,9 @@ enum PatchService {
             try installD9MTPrefixSupport(winePrefixPath: WineRegistrySupport.winePrefixURL().path)
             try registerD9MTBuiltins()
         }
+        // The wined3d renderer needs no patch-time prefix work: its Vulkan
+        // renderer is selected per-launch via WINE_D3D_CONFIG — see
+        // LaunchService.makeShellCommand.
 
         if version.usesRosettaPatching && version.supportsDLLLoading {
             try patchDivxDecoder(gameURL: gameURL)
@@ -60,8 +63,16 @@ enum PatchService {
         try FileManager.default.createDirectory(at: modsURL, withIntermediateDirectories: true)
 
         try copyResource(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta", to: modsURL.appendingPathComponent("winerosetta.dll"))
-        let d3d9Subdirectory = version.settings.renderer == .d9mt ? "Patching/d9mt" : "Patching/d9vk"
-        try copyResource(named: "d3d9", extension: "dll", subdirectory: d3d9Subdirectory, to: gameURL.appendingPathComponent("d3d9.dll"))
+        switch version.settings.renderer {
+        case .d9vk, .d9mt:
+            let d3d9Subdirectory = version.settings.renderer == .d9mt ? "Patching/d9mt" : "Patching/d9vk"
+            try copyResource(named: "d3d9", extension: "dll", subdirectory: d3d9Subdirectory, to: gameURL.appendingPathComponent("d3d9.dll"))
+        case .wined3d:
+            // wined3d is the builtin d3d9: a native DLL in the game folder would
+            // shadow it (WINEDLLOVERRIDES probes the exe's directory first), so
+            // staging means guaranteeing the file's absence.
+            try removeIfExists(gameURL.appendingPathComponent("d3d9.dll"))
+        }
 
         // Remove legacy exe-patching artifacts
         try removeIfExists(gameURL.appendingPathComponent("Wow_patched.exe"))

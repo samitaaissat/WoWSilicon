@@ -76,15 +76,29 @@ struct OptionsView: View {
         }
     }
 
+    /// Caption for the renderer the picker currently shows. Every renderer change
+    /// re-stages the game patch, so all three captions carry the same closing note.
+    private var rendererCaption: String {
+        switch viewModel.rendererBinding().wrappedValue {
+        case .d9vk:
+            return "d9vk translates D3D9 to Vulkan on MoltenVK — the default and most-tested path. Takes effect after re-patching."
+        case .d9mt:
+            return "d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: requires Xcode command line tools and does not support MSAA — set Multisampling to Off here and in the in-game video options, or the screen renders black. Switch back to d9vk if the game misbehaves. Takes effect after re-patching."
+        case .wined3d:
+            return "wined3d is Wine's own Direct3D 9 running on its Vulkan renderer (via MoltenVK) — no translation DLL in the game folder. Experimental: expect different performance and visuals than d9vk; switch back if the game misbehaves. Takes effect after re-patching."
+        }
+    }
+
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Picker("Renderer", selection: viewModel.rendererBinding()) {
                     Text("d9vk (Vulkan)").tag(RendererBackend.d9vk)
                     Text("d9mt (Metal, experimental)").tag(RendererBackend.d9mt)
+                    Text("wined3d (Wine built-in, experimental)").tag(RendererBackend.wined3d)
                 }
                 .pickerStyle(.menu)
-                Text("d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: requires Xcode command line tools; switch back to d9vk if the game misbehaves. Takes effect after re-patching.")
+                Text(rendererCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

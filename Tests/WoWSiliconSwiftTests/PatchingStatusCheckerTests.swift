@@ -121,6 +121,55 @@ final class PatchingStatusCheckerTests: XCTestCase {
         XCTAssertEqual(descriptor.level, .success)
     }
 
+    /// wined3d stages no d3d9.dll: an otherwise-patched folder without one must
+    /// read Applied (through the checksum tier, so the real winerosetta bytes
+    /// are staged; skipped when the resource bundle is unreachable).
+    func testGamePatchAppliedWithoutD3d9WhenRendererIsWineD3D() throws {
+        let winerosettaSource = PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta")
+        try XCTSkipIf(
+            winerosettaSource == nil,
+            "Bundled patch resources not resolvable under swift test; existence tier covered by other tests"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+        let modsURL = gameURL.appendingPathComponent("mods", isDirectory: true)
+        try FileManager.default.createDirectory(at: modsURL, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: winerosettaSource!, to: modsURL.appendingPathComponent("winerosetta.dll"))
+        try "mods/winerosetta.dll\n".write(to: gameURL.appendingPathComponent("dlls.txt"), atomically: true, encoding: .utf8)
+        // Deliberately NO <game>/d3d9.dll.
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .wined3d
+
+        let descriptor = PatchingStatusChecker.evaluateGamePatch(for: version)
+
+        XCTAssertTrue(descriptor.applied, "expected Applied, got: \(descriptor.text)")
+        XCTAssertEqual(descriptor.text, "Applied")
+        XCTAssertEqual(descriptor.level, .success)
+    }
+
+    /// Converse: a leftover d3d9.dll under the wined3d renderer means the folder
+    /// was staged for another renderer and needs a re-patch.
+    func testGamePatchFlagsLeftoverD3d9WhenRendererIsWineD3D() throws {
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+        let modsURL = gameURL.appendingPathComponent("mods", isDirectory: true)
+        try FileManager.default.createDirectory(at: modsURL, withIntermediateDirectories: true)
+        try Data([0x01]).write(to: modsURL.appendingPathComponent("winerosetta.dll"))
+        try Data([0x02]).write(to: gameURL.appendingPathComponent("d3d9.dll"))
+        try "mods/winerosetta.dll\n".write(to: gameURL.appendingPathComponent("dlls.txt"), atomically: true, encoding: .utf8)
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .wined3d
+
+        let descriptor = PatchingStatusChecker.evaluateGamePatch(for: version)
+
+        XCTAssertFalse(descriptor.applied)
+        XCTAssertEqual(descriptor.text, "Leftover d3d9.dll")
+        XCTAssertEqual(descriptor.level, .warning)
+    }
+
     /// The existence tier itself must survive the change.
     func testGamePatchStillReportsMissingWinerosetta() throws {
         let gameURL = try makeTemporaryDirectory()
@@ -134,7 +183,59 @@ final class PatchingStatusCheckerTests: XCTestCase {
         XCTAssertEqual(descriptor.level, .error)
     }
 
-    private func makeVersion(gameURL: URL) -> GameVersion {
+    /// Mutation guard for making the d3d9.dll requirement renderer-conditional:
+    /// d9vk (and d9mt) must still REQUIRE the file. Without this pin, dropping
+    /// the conditional append silently passes the suite — and a d9vk user with a
+    /// deleted d3d9.dll would read "Applied" and launch into the builtin
+    /// fallback (no WINE_D3D_CONFIG → no-3D GDI, black screen).
+    func testGamePatchStillRequiresD3d9ForD9vk() throws {
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+        let modsURL = gameURL.appendingPathComponent("mods", isDirectory: true)
+        try FileManager.default.createDirectory(at: modsURL, withIntermediateDirectories: true)
+        try Data([0x01]).write(to: modsURL.appendingPathComponent("winerosetta.dll"))
+        try "mods/winerosetta.dll\n".write(to: gameURL.appendingPathComponent("dlls.txt"), atomically: true, encoding: .utf8)
+        // Deliberately NO <game>/d3d9.dll, renderer left at the .d9vk default.
+
+        let descriptor = PatchingStatusChecker.evaluateGamePatch(for: makeVersion(gameURL: gameURL))
+
+        XCTAssertFalse(descriptor.applied)
+        XCTAssertEqual(descriptor.text, "Missing d3d9.dll")
+        XCTAssertEqual(descriptor.level, .error)
+    }
+
+    /// The usesDivxDecoderPatch tier mirrors the rosetta tier's renderer
+    /// conditionals; pure file-existence logic, no bundle resources needed.
+    func testDivxTierRendererConditionals() throws {
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+
+        var version = makeVersion(gameURL: gameURL, usesRosettaPatching: false, usesDivxDecoderPatch: true)
+
+        // d9vk without d3d9.dll: still required.
+        var descriptor = PatchingStatusChecker.evaluateGamePatch(for: version)
+        XCTAssertFalse(descriptor.applied)
+        XCTAssertEqual(descriptor.text, "Missing d3d9.dll")
+
+        // wined3d without d3d9.dll: Applied.
+        version.settings.renderer = .wined3d
+        descriptor = PatchingStatusChecker.evaluateGamePatch(for: version)
+        XCTAssertTrue(descriptor.applied, "expected Applied, got: \(descriptor.text)")
+        XCTAssertEqual(descriptor.text, "Applied")
+
+        // wined3d with a leftover d3d9.dll: needs a re-patch.
+        try Data([0x02]).write(to: gameURL.appendingPathComponent("d3d9.dll"))
+        descriptor = PatchingStatusChecker.evaluateGamePatch(for: version)
+        XCTAssertFalse(descriptor.applied)
+        XCTAssertEqual(descriptor.text, "Leftover d3d9.dll")
+        XCTAssertEqual(descriptor.level, .warning)
+    }
+
+    private func makeVersion(
+        gameURL: URL,
+        usesRosettaPatching: Bool = true,
+        usesDivxDecoderPatch: Bool = false
+    ) -> GameVersion {
         GameVersion(
             id: "test",
             displayName: "Test",
@@ -143,8 +244,8 @@ final class PatchingStatusCheckerTests: XCTestCase {
             executableName: "WoW.exe",
             supportsVanillaTweaks: false,
             supportsDLLLoading: false,
-            usesRosettaPatching: true,
-            usesDivxDecoderPatch: false
+            usesRosettaPatching: usesRosettaPatching,
+            usesDivxDecoderPatch: usesDivxDecoderPatch
         )
     }
 

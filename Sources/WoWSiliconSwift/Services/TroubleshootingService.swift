@@ -218,6 +218,7 @@ enum TroubleshootingService {
 
             baseLog += "\nVersion Settings:\n"
             let settings = version.settings
+            baseLog += "  Renderer: \(settings.renderer.rawValue)\n"
             baseLog += "  Vanilla Tweaks: \(settings.enableVanillaTweaks)\n"
             baseLog += "  Remap Option as Alt: \(settings.remapOptionAsAlt)\n"
             baseLog += "  Auto Delete WDB: \(settings.autoDeleteWdb)\n"
