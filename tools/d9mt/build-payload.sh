@@ -1,6 +1,8 @@
 #!/bin/bash
 # Builds the WoWSilicon d9mt payload tarball from pinned upstream sources:
-#   - d9mt  @ 237e2935e58355d1ee41fda097e1af272d5f62f0 (neo773/d9mt)
+#   - d9mt  @ fbc37c77 (samitaaissat/d9mt, our fork of neo773/d9mt: upstream
+#     237e2935 + the depth-bias fix for projected textures clipping into
+#     terrain — see the fork's wowsilicon-depth-bias-fix branch)
 #   - DXMT winemetal @ v0.80 (3Shain/dxmt, last MIT-licensed release)
 # Output: dist/d9mt-<N>.tar.gz + .sha256, layout documented in the repo plan:
 #   d9mt/d3d9.dll                              (d9mt i686 driver, build/d3d9fe.dll renamed)
@@ -14,9 +16,10 @@
 # metal/clang, python3, sqlite3).
 set -euo pipefail
 
-D9MT_COMMIT=237e2935e58355d1ee41fda097e1af272d5f62f0
+D9MT_REPO=https://github.com/samitaaissat/d9mt
+D9MT_COMMIT=fbc37c77aa94024bf3bea990e816213eb3137ae1
 DXMT_TAG=v0.80
-PAYLOAD_VERSION="${PAYLOAD_VERSION:-1}"
+PAYLOAD_VERSION="${PAYLOAD_VERSION:-2}"
 
 cd "$(dirname "$0")"
 WORK="$PWD/work"
@@ -41,7 +44,7 @@ cp "$WORK/$DXMT_TAG/x86_64-windows/winemetal.dll"  "$STAGE/d9mt/winemetal/x86_64
 cp "$WORK/$DXMT_TAG/x86_64-unix/winemetal.so"      "$STAGE/d9mt/winemetal/x86_64-unix/"
 
 # --- d9mt driver + d9mtmetal unixlib ---
-git clone https://github.com/neo773/d9mt "$WORK/d9mt"
+git clone "$D9MT_REPO" "$WORK/d9mt"
 git -C "$WORK/d9mt" checkout "$D9MT_COMMIT"
 
 # winemetal import setup the d9mt build links against (-L prebuilt -lwinemetal).
