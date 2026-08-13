@@ -84,7 +84,7 @@ struct OptionsView: View {
                     Text("d9mt (Metal, experimental)").tag(RendererBackend.d9mt)
                 }
                 .pickerStyle(.menu)
-                Text("d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: requires Xcode command line tools; switch back to d9vk if the game misbehaves. Takes effect after re-patching.")
+                Text("d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: requires Xcode command line tools and does not support MSAA — set Multisampling to Off here and in the in-game video options, or the screen renders black. Switch back to d9vk if the game misbehaves. Takes effect after re-patching.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
