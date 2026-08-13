@@ -76,7 +76,13 @@ run: bundle
 	@echo "Launching $(APP_NAME).app..."
 	open "$(APP_BUNDLE)"
 
-bundle: build fetch-runtime fetch-d9mt
+# fetch-d9mt MUST precede build: swift build stages the SwiftPM resource bundle
+# from Sources/, so a payload fetched afterwards never enters it — on a fresh
+# checkout that shipped an app without Patching/d9mt (v3.2.0 regression). The
+# guard below makes any recurrence a hard build error instead of a broken DMG.
+bundle: fetch-runtime fetch-d9mt build
+	@test -s "$(RESOURCE_BUNDLE)/Patching/d9mt/d3d9.dll" && test -s "$(RESOURCE_BUNDLE)/Patching/d9vk/d3d9.dll" \
+		|| (echo "error: $(RESOURCE_BUNDLE) is missing renderer payloads (stale build preceded fetch-d9mt?); run 'swift build' again or 'make clean'" >&2; exit 1)
 	@$(MAKE) app_icon
 	@echo "Staging $(APP_NAME).app..."
 	@rm -rf "$(APP_BUNDLE)"
