@@ -41,17 +41,49 @@ final class WineRuntime: @unchecked Sendable {
     private let bundleURL: URL
     private let rosettaLoaderOverride: URL?
     private let fileManager = FileManager.default
+    /// A writable runtime downloaded by `RuntimeUpdateService`, preferred over
+    /// the bundled runtime whenever it looks structurally valid. nil (the
+    /// default) means "always use the runtime staged inside the app bundle at
+    /// build time" — the only mode the test suite exercises. Real app startup
+    /// wires this in explicitly via `setOverrideGameAppURL` once a writable
+    /// data root is known, so this class's own construction (and `.shared`)
+    /// stays free of any dependency on `PortableStorage`.
+    private var overrideGameAppURL: URL?
 
     init(bundleURL: URL = Bundle.main.bundleURL, rosettaLoaderOverride: URL? = nil) {
         self.bundleURL = bundleURL
         self.rosettaLoaderOverride = rosettaLoaderOverride
     }
 
-    var gameAppURL: URL {
+    /// Points the runtime lookup at a downloaded override root. Pass nil to
+    /// go back to the bundled runtime only.
+    func setOverrideGameAppURL(_ url: URL?) {
+        overrideGameAppURL = url
+    }
+
+    /// The runtime staged inside the app bundle at build time — the baseline
+    /// `RuntimeUpdateService` copies from when assembling a downloaded update.
+    var bundledGameAppURL: URL {
         bundleURL
             .appendingPathComponent("Contents", isDirectory: true)
             .appendingPathComponent("SharedSupport", isDirectory: true)
             .appendingPathComponent(Self.gameAppName, isDirectory: true)
+    }
+
+    /// The active runtime root: a downloaded override when one has been
+    /// installed and looks structurally sane, otherwise the bundled runtime.
+    var gameAppURL: URL {
+        if let overrideGameAppURL, isValidRuntimeRoot(overrideGameAppURL) {
+            return overrideGameAppURL
+        }
+        return bundledGameAppURL
+    }
+
+    /// True when a downloaded runtime is currently active in place of the
+    /// bundled one. Surfaced for diagnostics (e.g. Troubleshooting).
+    var isUsingDownloadedRuntime: Bool {
+        guard let overrideGameAppURL else { return false }
+        return isValidRuntimeRoot(overrideGameAppURL)
     }
 
     var runtimeRootURL: URL {
@@ -114,5 +146,16 @@ final class WineRuntime: @unchecked Sendable {
             throw WineRuntimeError.rosettaLoaderMissing
         }
         return url
+    }
+
+    /// A runtime root is trusted only when its wine binary is present and
+    /// executable — the same bar `validatedWineBinaryURL()` holds the bundled
+    /// runtime to.
+    private func isValidRuntimeRoot(_ gameAppURL: URL) -> Bool {
+        let wineURL = gameAppURL
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("MacOS", isDirectory: true)
+            .appendingPathComponent("wine", isDirectory: false)
+        return fileManager.isExecutableFile(atPath: wineURL.path)
     }
 }
