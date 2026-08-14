@@ -1,0 +1,90 @@
+{
+    "version": "0.1.0",
+    "id": "11e55be8-5777-4efe-bb2a-71db3f69e592",
+    "timestamp": "2026-08-14T01:46:54.577731Z",
+    "vcs": {
+        "type": "git",
+        "revision": "b8ee9d9f95f7f02d11d99a4b767676b815c76284",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:c325681a2a7a9c725c43172e8f75744c01ea94b7",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.227"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 52,
+                            "end_line": 52
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 55
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/releasing.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:c325681a2a7a9c725c43172e8f75744c01ea94b7",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.227"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 118,
+                            "end_line": 124
+                        },
+                        {
+                            "start_line": 128,
+                            "end_line": 128
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/d9mt/build-payload.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:c325681a2a7a9c725c43172e8f75744c01ea94b7",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.227"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 3,
+                            "end_line": 3
+                        },
+                        {
+                            "start_line": 5,
+                            "end_line": 6
+                        },
+                        {
+                            "start_line": 21,
+                            "end_line": 21
+                        },
+                        {
+                            "start_line": 23,
+                            "end_line": 23
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
