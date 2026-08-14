@@ -1,0 +1,64 @@
+{
+    "version": "0.1.0",
+    "id": "fe609ea6-7a2e-46c7-8b55-37e9b6ade623",
+    "timestamp": "2026-08-14T13:14:06.897628Z",
+    "vcs": {
+        "type": "git",
+        "revision": "f68033c9c489aa55577cd476caef8d1031db7bad",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:ad6bfb4a9fdf7bf8101694c8dc6cac18e4609aea",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 52,
+                            "end_line": 52
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 55
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/d9mt/build-payload.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:ad6bfb4a9fdf7bf8101694c8dc6cac18e4609aea",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 3,
+                            "end_line": 8
+                        },
+                        {
+                            "start_line": 23,
+                            "end_line": 23
+                        },
+                        {
+                            "start_line": 25,
+                            "end_line": 25
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
