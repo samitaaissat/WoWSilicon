@@ -1,8 +1,9 @@
 #!/bin/bash
 # Builds the WoWSilicon d9mt payload tarball from pinned upstream sources:
-#   - d9mt  @ fbc37c77 (samitaaissat/d9mt, our fork of neo773/d9mt: upstream
+#   - d9mt  @ e599ec5c (samitaaissat/d9mt, our fork of neo773/d9mt: upstream
 #     237e2935 + the depth-bias fix for projected textures clipping into
-#     terrain — see the fork's wowsilicon-depth-bias-fix branch)
+#     terrain + the bind-path perf work (~20% frame time at high draw
+#     counts) — see the fork's `wowsilicon` integration branch)
 #   - DXMT winemetal @ v0.80 (3Shain/dxmt, last MIT-licensed release)
 # Output: dist/d9mt-<N>.tar.gz + .sha256, layout documented in the repo plan:
 #   d9mt/d3d9.dll                              (d9mt i686 driver, build/d3d9fe.dll renamed)
@@ -17,9 +18,9 @@
 set -euo pipefail
 
 D9MT_REPO=https://github.com/samitaaissat/d9mt
-D9MT_COMMIT=fbc37c77aa94024bf3bea990e816213eb3137ae1
+D9MT_COMMIT=e599ec5c61fd3b13a1e891eae5d2eaaa61718ca8
 DXMT_TAG=v0.80
-PAYLOAD_VERSION="${PAYLOAD_VERSION:-2}"
+PAYLOAD_VERSION="${PAYLOAD_VERSION:-3}"
 
 cd "$(dirname "$0")"
 WORK="$PWD/work"

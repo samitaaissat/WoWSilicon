@@ -49,10 +49,10 @@ RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
 # d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to the
 # runtime-v$(RUNTIME_VERSION) release page). Bump all three pins together.
-D9MT_VERSION ?= 2
+D9MT_VERSION ?= 3
 D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
 D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(D9MT_ASSET)
-D9MT_SHA256 ?= 4b6ef9398be217a77818c3f66184c17d8cda166ad9ef86b69bdb8b253c2f028d
+D9MT_SHA256 ?= 36edcda27be1e97da92236c337f747719cf4a273c69e4f1c1f37b594d70df508
 D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
 D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
 
