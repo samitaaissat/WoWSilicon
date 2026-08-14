@@ -98,6 +98,10 @@ bundle: fetch-runtime fetch-d9mt build
 	@cp Packaging/Info.plist "$(APP_BUNDLE)/Contents/Info.plist"
 	@/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" "$(APP_BUNDLE)/Contents/Info.plist"
 	@/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(BUILD_NUMBER)" "$(APP_BUNDLE)/Contents/Info.plist"
+	@# Lets the running app know which runtime/d9mt versions it was built with,
+	@# so RuntimeUpdateService can tell a downloaded cache from a stale one.
+	@/usr/libexec/PlistBuddy -c "Set :WSBundledRuntimeVersion $(RUNTIME_VERSION)" "$(APP_BUNDLE)/Contents/Info.plist"
+	@/usr/libexec/PlistBuddy -c "Set :WSBundledD9MTVersion $(D9MT_VERSION)" "$(APP_BUNDLE)/Contents/Info.plist"
 	@cp "$(RELEASE_BIN)" "$(APP_BUNDLE)/Contents/MacOS/$(BINARY_NAME)"
 	@chmod +x "$(APP_BUNDLE)/Contents/MacOS/$(BINARY_NAME)"
 	@cp -R "$(SPARKLE_FRAMEWORK)" "$(APP_BUNDLE)/Contents/Frameworks/"

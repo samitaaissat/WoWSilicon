@@ -47,10 +47,12 @@ struct TroubleshootingView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Wine Runtime").font(.headline)
             HStack {
-                Text("Wine runtime: \(viewModel.runtimeVersion)")
+                Text("Wine runtime: \(viewModel.runtimeVersion) (\(viewModel.runtimeSource))")
                 Spacer()
                 Text("rosettax87: bundled (\(viewModel.rosettaStatus))")
             }
+            Button("Check for Runtime Updates", action: viewModel.checkForRuntimeUpdates)
+                .buttonStyle(.bordered)
         }
     }
 

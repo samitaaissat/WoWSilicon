@@ -26,6 +26,12 @@ enum PatchServiceError: LocalizedError {
 }
 
 enum PatchService {
+    /// Set once at app startup when `RuntimeUpdateService` has a writable
+    /// cache directory to check for a downloaded d9mt payload newer than the
+    /// one bundled with the app; nil (the default, and the only mode the test
+    /// suite exercises) means "only use the bundled Patching/d9mt resources".
+    static var d9mtOverrideDirectory: URL?
+
     static func applyGamePatch(for version: GameVersion) throws {
         let gameURL = try stageGamePatchFiles(for: version)
 
@@ -398,7 +404,16 @@ enum PatchService {
         try filtered.write(to: dllsURL, atomically: true, encoding: .utf8)
     }
 
-    static func resourceURL(named name: String, extension ext: String?, subdirectory: String) -> URL? {
+    static func resourceURL(
+        named name: String,
+        extension ext: String?,
+        subdirectory: String,
+        overrideDirectory: URL? = PatchService.d9mtOverrideDirectory
+    ) -> URL? {
+        if let overrideURL = d9mtOverrideResourceURL(named: name, extension: ext, subdirectory: subdirectory, root: overrideDirectory) {
+            return overrideURL
+        }
+
         for bundle in CandidateBundles.all {
             if let url = bundle.url(forResource: name, withExtension: ext, subdirectory: subdirectory) {
                 return url
@@ -418,6 +433,24 @@ enum PatchService {
         }
 
         return nil
+    }
+
+    /// Looks for a resource under a downloaded d9mt cache before falling back
+    /// to the bundled Patching/d9mt resources. `root` mirrors the extracted
+    /// tarball's own layout (d3d9.dll, winemetal/<arch>/…, d9mtmetal/<arch>/…),
+    /// so subdirectories are resolved relative to it by stripping the
+    /// "Patching/d9mt/" prefix the rest of this file passes in.
+    private static func d9mtOverrideResourceURL(named name: String, extension ext: String?, subdirectory: String, root: URL?) -> URL? {
+        guard let root else { return nil }
+        guard subdirectory == "Patching/d9mt" || subdirectory.hasPrefix("Patching/d9mt/") else { return nil }
+
+        let prefix = "Patching/d9mt/"
+        let relative = subdirectory.hasPrefix(prefix) ? String(subdirectory.dropFirst(prefix.count)) : ""
+        let directory = relative.isEmpty ? root : root.appendingPathComponent(relative, isDirectory: true)
+        let filename = ext.map { "\(name).\($0)" } ?? name
+        let candidate = directory.appendingPathComponent(filename, isDirectory: false)
+
+        return FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
     }
 }
 
