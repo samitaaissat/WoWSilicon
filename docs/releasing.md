@@ -135,3 +135,26 @@ The app pins it in the `Makefile` alongside the runtime pins:
 it); `make bundle` then stages the `winemetal`/`d9mtmetal` files as Wine
 builtins into the nested game app's `lib/wine` arch dirs. Bump all three
 `D9MT_*` pins together in one commit, like the runtime pins.
+
+### Runtime Self-Updates
+
+Independently of app releases, `RuntimeUpdateService` polls
+`samitaaissat/WoWSilicon`'s releases at app startup (debounced to once per 24h;
+"Check for Runtime Updates" in Troubleshooting forces an immediate check) for a
+wine tarball or d9mt payload newer than what the running app was built with
+(`WSBundledRuntimeVersion`/`WSBundledD9MTVersion` in `Packaging/Info.plist`,
+kept in sync with `RUNTIME_VERSION`/`D9MT_VERSION` by the `bundle` target).
+Anything newer is downloaded, checksum-verified against its `.sha256` sidecar
+asset, and assembled into an override copy of the nested game bundle under the
+portable Data folder (`WoWSilicon Data/RuntimeUpdate/`) — the app never writes
+into the signed `.app` bundle itself. `WineRuntime` and `PatchService` prefer
+this override whenever it looks structurally valid, and fall back to the
+bundled runtime otherwise (including automatically, once a later app release
+ships a runtime newer than a stale override).
+
+This means a `.sha256` sidecar asset is required for auto-update to ever pick
+up a release asset — already true for every wine tarball the runtime workflow
+publishes, but worth remembering when manually uploading a new
+`d9mt-<n>.tar.gz` to a `runtime-v<n>` release page: upload the
+`d9mt-<n>.tar.gz.sha256` `build-payload.sh` produces alongside it, or
+`RuntimeUpdateService` will silently skip that version.

@@ -15,6 +15,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
 
     @Published var status: Status = .idle
     @Published var runtimeVersion: String = "Not found"
+    @Published var runtimeSource: String = "bundled"
     @Published var rosettaStatus: String = "missing"
     @Published var storageDescription: String = ""
     @Published var debugLog: String = ""
@@ -42,6 +43,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
 
             let runtime = WineRuntime.shared
             let version = runtime.runtimeVersion ?? "Not found"
+            let source = runtime.isUsingDownloadedRuntime ? "downloaded update" : "bundled"
             // rosettaLoaderURL is a constructed path (never nil) — probe the file.
             let rosetta = (try? runtime.validatedRosettaLoaderURL()) != nil ? "ok" : "missing"
             let storageDescription = PortableStorage.shared.displayDescription
@@ -58,12 +60,43 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
 
             Task { @MainActor in
                 self.runtimeVersion = version
+                self.runtimeSource = source
                 self.rosettaStatus = rosetta
                 self.storageDescription = storageDescription
                 self.debugLog = result.preview
                 self.fullDebugLog = result.full
                 self.status = .ready
             }
+        }
+    }
+
+    /// Manually triggers the same background check `RuntimeUpdateService`
+    /// runs once per launch — mostly useful to confirm the app can reach
+    /// GitHub, or to pull down a fix without waiting for the daily check.
+    func checkForRuntimeUpdates() {
+        guard case .busy = status else {
+            status = .busy("Checking for runtime updates…")
+            // Detached: the check shells out to tar/ditto, which block for as
+            // long as the download/extraction takes — must not run on an
+            // actor's executor (see refresh() above for the same pattern).
+            Task.detached { [weak self] in
+                do {
+                    try await RuntimeUpdateService.shared.checkForUpdatesIfNeeded(force: true)
+                    Task { @MainActor in
+                        guard let self else { return }
+                        self.status = .ready
+                        self.alert = ManagerAlert(message: "Runtime update check complete.")
+                        self.refresh()
+                    }
+                } catch {
+                    Task { @MainActor in
+                        guard let self else { return }
+                        self.status = .ready
+                        self.alert = ManagerAlert(message: error.localizedDescription)
+                    }
+                }
+            }
+            return
         }
     }
 

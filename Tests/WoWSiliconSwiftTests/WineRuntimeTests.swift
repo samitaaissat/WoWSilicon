@@ -79,6 +79,61 @@ final class WineRuntimeTests: XCTestCase {
         }
     }
 
+    func testGameAppURLUsesBundledPathWhenNoOverrideIsSet() throws {
+        let bundleURL = URL(fileURLWithPath: "/Applications/WoWSilicon.app", isDirectory: true)
+        let runtime = WineRuntime(bundleURL: bundleURL)
+
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
+    func testGameAppURLPrefersOverrideWhenItsWineBinaryIsExecutable() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
+        try makeFile(at: overrideRoot.appendingPathComponent("Contents/MacOS/wine"), posixPermissions: 0o755)
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+
+        XCTAssertEqual(runtime.gameAppURL, overrideRoot)
+        XCTAssertTrue(runtime.isUsingDownloadedRuntime)
+        XCTAssertEqual(runtime.wineBinaryURL.path, overrideRoot.appendingPathComponent("Contents/MacOS/wine").path)
+    }
+
+    func testGameAppURLFallsBackToBundledWhenOverrideWineBinaryIsMissing() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
+        // Override directory exists but was never populated with a wine binary.
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
+    func testGameAppURLFallsBackToBundledWhenOverrideWineBinaryIsNotExecutable() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
+        try makeFile(at: overrideRoot.appendingPathComponent("Contents/MacOS/wine"), posixPermissions: 0o644)
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
+    func testSetOverrideGameAppURLBackToNilRestoresBundledPath() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
+        try makeFile(at: overrideRoot.appendingPathComponent("Contents/MacOS/wine"), posixPermissions: 0o755)
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+        XCTAssertTrue(runtime.isUsingDownloadedRuntime)
+
+        runtime.setOverrideGameAppURL(nil)
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
     private func makeFile(at url: URL, posixPermissions: Int) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("#!/bin/sh\nexit 0\n".utf8).write(to: url)
