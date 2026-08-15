@@ -93,7 +93,7 @@ final class LaunchSessionLogTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: VersionSettings(),
             sessionLogPath: "/Data/Logs/wine-session-1.log"
@@ -114,7 +114,7 @@ final class LaunchSessionLogTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: VersionSettings(),
             sessionLogPath: "/Data/$(evil)/Logs/s.log"
@@ -129,7 +129,7 @@ final class LaunchSessionLogTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: VersionSettings()
         )
@@ -143,7 +143,7 @@ final class LaunchSessionLogTests: XCTestCase {
         let command = LaunchService.makeLauncherShellCommand(
             exePath: "/Data/prefix/drive_c/Program Files/L/L.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: VersionSettings(),
             sessionLogPath: "/Data/Logs/launcher.log"
@@ -159,7 +159,7 @@ final class LaunchSessionLogTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: VersionSettings(),
             sessionLogPath: "/Data/Logs/s.log"

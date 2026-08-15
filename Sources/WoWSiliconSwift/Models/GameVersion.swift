@@ -173,16 +173,17 @@ struct GraphicsSettings: Codable, Equatable, Sendable {
 
 // MARK: - Version settings
 
-/// D3D9 translation backend staged into the game folder. d9vk (D3D9→Vulkan→MoltenVK)
-/// is the default; d9mt (D3D9→Metal, experimental) requires Xcode CLT at runtime;
-/// wined3d (experimental) is Wine's built-in D3D9 driven by its Vulkan renderer
-/// through the bundled MoltenVK — no d3d9.dll is staged, and the launch env must
-/// carry WINE_D3D_CONFIG="renderer=vulkan" (the bundled runtime is built
-/// --without-opengl, so wined3d's default GL renderer has no GPU path).
+/// D3D9 translation backend staged into the game folder, in support order.
+/// mtld3d (athei/mtld3d, D3D9→Metal, native-override install) is the default
+/// and first supported way: a native d3d9.dll beside the game exe backed by the
+/// mtld3d.dll/mtld3d.so builtin pair in the runtime's lib tree, accelerated by
+/// x87sidecar via the runtime's cooperative handshake. d9mt (D3D9→Metal) is the
+/// second-supported path. d9vk (D3D9→Vulkan→MoltenVK) is kept as a legacy
+/// fallback. wined3d was removed in favor of mtld3d; stored values migrate.
 enum RendererBackend: String, Codable, CaseIterable, Equatable, Sendable {
-    case d9vk
+    case mtld3d
     case d9mt
-    case wined3d
+    case d9vk
 }
 
 struct VersionSettings: Codable, Equatable, Sendable {
@@ -213,7 +214,7 @@ struct VersionSettings: Codable, Equatable, Sendable {
         graphicsSettings: GraphicsSettings = GraphicsSettings(),
         enableLibSiliconPatch: Bool = false,
         userDisabledLibSiliconPatch: Bool = false,
-        renderer: RendererBackend = .d9vk
+        renderer: RendererBackend = .mtld3d
     ) {
         self.enableVanillaTweaks = enableVanillaTweaks
         self.remapOptionAsAlt = remapOptionAsAlt
@@ -257,11 +258,17 @@ struct VersionSettings: Codable, Equatable, Sendable {
         // Decoded through String: decodeIfPresent(RendererBackend.self) throws on
         // an unknown raw value, so a versions.json written by a newer build (with
         // a renderer this build doesn't know) would fail the whole decode and
-        // reset the user's versions on rollback. Unknown values fall back to d9vk.
+        // reset the user's versions on rollback. "wined3d" (removed) migrates to
+        // mtld3d, its replacement; unknown values and a missing key fall back to
+        // the default. Explicit "d9vk"/"d9mt" choices are always preserved.
         if let rendererRaw = try container.decodeIfPresent(String.self, forKey: .renderer) {
-            renderer = RendererBackend(rawValue: rendererRaw) ?? .d9vk
+            if rendererRaw == "wined3d" {
+                renderer = .mtld3d
+            } else {
+                renderer = RendererBackend(rawValue: rendererRaw) ?? .mtld3d
+            }
         } else {
-            renderer = .d9vk
+            renderer = .mtld3d
         }
 
         if let gs = try container.decodeIfPresent(GraphicsSettings.self, forKey: .graphicsSettings) {

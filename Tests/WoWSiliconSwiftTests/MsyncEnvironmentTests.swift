@@ -7,7 +7,7 @@ import XCTest
 /// shared prefix must emit the same value.
 final class MsyncEnvironmentTests: XCTestCase {
     private let winePath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wine"
-    private let loaderPath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/rosettax87"
+    private let loaderPath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wine-rosetta-shim"
     private let prefixPath = "/Applications/WoWSilicon Data/prefix"
 
     private func command(_ settings: VersionSettings) -> String {
@@ -15,7 +15,7 @@ final class MsyncEnvironmentTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: settings
         )

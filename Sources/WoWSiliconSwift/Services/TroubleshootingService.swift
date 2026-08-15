@@ -268,12 +268,12 @@ enum TroubleshootingService {
         baseLog += "Wine Binary: \(winePath)\n"
         baseLog += "  Exists: " + (FileManager.default.fileExists(atPath: winePath) ? "✓ Yes\n" : "✗ No\n")
         baseLog += "  Executable: " + (FileManager.default.isExecutableFile(atPath: winePath) ? "✓ Yes\n" : "✗ No\n")
-        if let loader = runtime.rosettaLoaderURL {
-            baseLog += "rosettax87 Loader: \(loader.path)\n"
+        if let loader = runtime.x87LoaderURL {
+            baseLog += "x87 Loader Shim: \(loader.path)\n"
             baseLog += "  Exists: " + (FileManager.default.fileExists(atPath: loader.path) ? "✓ Yes\n" : "✗ No\n")
             baseLog += "  Executable: " + (FileManager.default.isExecutableFile(atPath: loader.path) ? "✓ Yes\n" : "✗ No\n")
         } else {
-            baseLog += "rosettax87 Loader: missing\n"
+            baseLog += "x87 Loader Shim: missing\n"
         }
 
         baseLog += "\n=== Patch Status ===\n"

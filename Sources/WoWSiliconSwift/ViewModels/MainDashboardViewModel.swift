@@ -587,7 +587,7 @@ final class MainDashboardViewModel: ObservableObject {
     /// next launch.
     func rendererBinding() -> Binding<RendererBackend> {
         Binding(
-            get: { self.versionManager.currentVersion?.settings.renderer ?? .d9vk },
+            get: { self.versionManager.currentVersion?.settings.renderer ?? .mtld3d },
             set: { newValue in
                 if newValue == .d9mt && !Self.isMetalToolchainAvailable() {
                     self.patchFeedback = PatchFeedback(

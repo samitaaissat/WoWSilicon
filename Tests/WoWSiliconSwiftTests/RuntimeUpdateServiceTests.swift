@@ -81,11 +81,23 @@ final class RuntimeUpdateServiceTests: XCTestCase {
         try writeFile(at: cache.appendingPathComponent("d3d9.dll"), content: marker)
     }
 
+    private func makeFakeMTLD3DCache(storage: PortableStorage, marker: String) throws {
+        let cache = RuntimeUpdatePaths.mtld3dCacheDirectory(storage: storage)
+        try writeFile(at: cache.appendingPathComponent("native/i386-windows/d3d9.dll"), content: marker)
+        try writeFile(at: cache.appendingPathComponent("native/x86_64-windows/d3d9.dll"), content: marker)
+        try writeFile(at: cache.appendingPathComponent("wine/i386-windows/mtld3d.dll"), content: marker)
+        try writeFile(at: cache.appendingPathComponent("wine/x86_64-windows/mtld3d.dll"), content: marker)
+        try writeFile(at: cache.appendingPathComponent("wine/i386-windows/mtld3d.fake.dll"), content: marker)
+        try writeFile(at: cache.appendingPathComponent("wine/x86_64-windows/mtld3d.fake.dll"), content: marker)
+        try writeFile(at: cache.appendingPathComponent("wine/x86_64-unix/mtld3d.so"), content: marker)
+    }
+
     private func makeService(
         storage: PortableStorage,
         runtime: WineRuntime,
         bundledWineVersion: Int,
-        bundledD9MTVersion: Int
+        bundledD9MTVersion: Int,
+        bundledMTLD3DVersion: Int = 1
     ) -> RuntimeUpdateService {
         RuntimeUpdateService(
             session: URLSession(configuration: .ephemeral),
@@ -93,7 +105,8 @@ final class RuntimeUpdateServiceTests: XCTestCase {
             runtime: runtime,
             fileManager: .default,
             bundledWineVersion: bundledWineVersion,
-            bundledD9MTVersion: bundledD9MTVersion
+            bundledD9MTVersion: bundledD9MTVersion,
+            bundledMTLD3DVersion: bundledMTLD3DVersion
         )
     }
 
@@ -111,6 +124,14 @@ final class RuntimeUpdateServiceTests: XCTestCase {
         XCTAssertEqual(RuntimeUpdateService.d9mtTarballVersion(filename: "d9mt-3.tar.gz"), 3)
         XCTAssertNil(RuntimeUpdateService.d9mtTarballVersion(filename: "d9mt-3.tar.gz.sha256"))
         XCTAssertNil(RuntimeUpdateService.d9mtTarballVersion(filename: "wowsilicon-wine-3-osx64.tar.xz"))
+        XCTAssertNil(RuntimeUpdateService.d9mtTarballVersion(filename: "mtld3d-1.tar.gz"))
+    }
+
+    func testMTLD3DTarballVersionParsesExpectedFilenames() {
+        XCTAssertEqual(RuntimeUpdateService.mtld3dTarballVersion(filename: "mtld3d-1.tar.gz"), 1)
+        XCTAssertNil(RuntimeUpdateService.mtld3dTarballVersion(filename: "mtld3d-1.tar.gz.sha256"))
+        XCTAssertNil(RuntimeUpdateService.mtld3dTarballVersion(filename: "d9mt-3.tar.gz"))
+        XCTAssertNil(RuntimeUpdateService.mtld3dTarballVersion(filename: "wowsilicon-wine-3-osx64.tar.xz"))
     }
 
     func testParseChecksumExtractsHexDigestFromShasumFormat() {
@@ -163,6 +184,22 @@ final class RuntimeUpdateServiceTests: XCTestCase {
 
         XCTAssertEqual(result?.wineVersion, 2)
         XCTAssertEqual(result?.d9mtVersion, 5)
+    }
+
+    func testSelectLatestAssetsFindsMTLD3DAlongsideD9MTOnThePayloadShelf() {
+        let releases = [
+            makeRelease(tag: "runtime-v1", assetNames: [
+                "d9mt-5.tar.gz", "d9mt-5.tar.gz.sha256",
+                "mtld3d-2.tar.gz", "mtld3d-2.tar.gz.sha256"
+            ]),
+            makeRelease(tag: "runtime-v2", assetNames: ["wowsilicon-wine-2-osx64.tar.xz", "wowsilicon-wine-2-osx64.tar.xz.sha256"])
+        ]
+
+        let result = RuntimeUpdateService.selectLatestAssets(from: releases)
+
+        XCTAssertEqual(result?.wineVersion, 2)
+        XCTAssertEqual(result?.d9mtVersion, 5)
+        XCTAssertEqual(result?.mtld3dVersion, 2)
     }
 
     func testSelectLatestAssetsExcludesTarballsMissingChecksumSidecar() {
@@ -263,6 +300,41 @@ final class RuntimeUpdateServiceTests: XCTestCase {
             try String(contentsOf: overrideURL.appendingPathComponent("Contents/lib/wine/x86_64-windows/winemetal.dll"), encoding: .utf8),
             "cached-d9mt"
         )
+    }
+
+    func testRebuildOverrideOverlaysMTLD3DWithoutTouchingBundledWine() throws {
+        let (storage, _) = try makeStorage()
+        let runtime = try makeFakeBundledGameApp(wineMarker: "bundled-wine")
+        try makeFakeMTLD3DCache(storage: storage, marker: "cached-mtld3d")
+        let service = makeService(storage: storage, runtime: runtime, bundledWineVersion: 1, bundledD9MTVersion: 3, bundledMTLD3DVersion: 1)
+
+        var state = RuntimeUpdateState(mtld3dCacheVersion: 2)
+        try service.rebuildOverrideIfNeeded(state: &state)
+
+        XCTAssertEqual(state.overrideWineVersion, 1)
+        XCTAssertEqual(state.overrideMTLD3DVersion, 2)
+
+        let overrideURL = RuntimeUpdatePaths.overrideGameAppURL(storage: storage)
+        XCTAssertEqual(
+            try String(contentsOf: overrideURL.appendingPathComponent("Contents/MacOS/wine"), encoding: .utf8),
+            "bundled-wine",
+            "an mtld3d-only update must not disturb the wine binary"
+        )
+        // The builtin trio lands in the lib tree...
+        for path in [
+            "Contents/lib/wine/i386-windows/mtld3d.dll",
+            "Contents/lib/wine/x86_64-windows/mtld3d.dll",
+            "Contents/lib/wine/x86_64-unix/mtld3d.so"
+        ] {
+            XCTAssertEqual(
+                try String(contentsOf: overrideURL.appendingPathComponent(path), encoding: .utf8),
+                "cached-mtld3d", "\(path) must come from the mtld3d cache"
+            )
+        }
+        // ...and the native/marker files deliberately do NOT (PatchService
+        // stages those into the game folder / prefix from the cache directly).
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: overrideURL.appendingPathComponent("Contents/lib/wine/i386-windows/mtld3d.fake.dll").path))
     }
 
     func testRebuildOverrideIsNoOpWhenAlreadyCurrent() throws {

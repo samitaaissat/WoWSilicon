@@ -15,8 +15,8 @@ final class PatchServiceGamePatchTests: XCTestCase {
     func testStageGamePatchFilesCopiesPayloadAndDeletesStaleRosettax87() throws {
         try XCTSkipIf(
             PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
-                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil,
-            "Bundled patch resources not resolvable under swift test"
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-mtld3d)"
         )
 
         let gameURL = try makeTemporaryDirectory()
@@ -136,44 +136,68 @@ final class PatchServiceGamePatchTests: XCTestCase {
         }
     }
 
-    func testStageGamePatchFilesWithWineD3DRemovesNativeD3d9() throws {
+    /// mtld3d native-override route: the staged d3d9.dll must be the bundle's
+    /// unmarked native i386 PE, and the self-documenting sample mtld3d.conf is
+    /// staged beside it.
+    func testStageGamePatchFilesWithMTLD3DStagesNativeD3d9AndConf() throws {
         try XCTSkipIf(
             PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
-                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil,
-            "Bundled patch resources not resolvable under swift test"
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-mtld3d)"
         )
 
         let gameURL = try makeTemporaryDirectory()
         try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
 
-        // Start from a d9vk-staged folder: the native d3d9.dll is present...
         var version = makeVersion(gameURL: gameURL)
-        try PatchService.stageGamePatchFiles(for: version)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("d3d9.dll").path))
-
-        // ...and switching to wined3d must delete it (the builtin d3d9 takes over)
-        // while leaving the rest of the payload staged.
-        version.settings.renderer = .wined3d
+        version.settings.renderer = .mtld3d
         try PatchService.stageGamePatchFiles(for: version)
 
-        XCTAssertFalse(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("d3d9.dll").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("mods/winerosetta.dll").path))
+        let staged = try Data(contentsOf: gameURL.appendingPathComponent("d3d9.dll"))
+        let bundled = try Data(contentsOf: PatchService.resourceURL(
+            named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows")!)
+        XCTAssertEqual(staged, bundled)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("mtld3d.conf").path))
     }
 
-    func testStageGamePatchFilesSwitchingFromWineD3DBackToD9vkRestoresD3d9() throws {
+    /// mtld3d.conf is user-editable runtime configuration: re-staging must never
+    /// clobber an existing copy, and switching renderers must leave it in place.
+    func testStageGamePatchFilesNeverOverwritesUserEditedMTLD3DConf() throws {
         try XCTSkipIf(
             PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
-                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil,
-            "Bundled patch resources not resolvable under swift test"
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-mtld3d)"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+        let userConf = "render.scale = 0.5\n"
+        try userConf.write(to: gameURL.appendingPathComponent("mtld3d.conf"), atomically: true, encoding: .utf8)
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .mtld3d
+        try PatchService.stageGamePatchFiles(for: version)
+
+        XCTAssertEqual(
+            try String(contentsOf: gameURL.appendingPathComponent("mtld3d.conf"), encoding: .utf8),
+            userConf
+        )
+    }
+
+    func testStageGamePatchFilesSwitchingFromMTLD3DBackToD9vkRestoresD9vkD3d9() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-mtld3d)"
         )
 
         let gameURL = try makeTemporaryDirectory()
         try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
 
         var version = makeVersion(gameURL: gameURL)
-        version.settings.renderer = .wined3d
+        version.settings.renderer = .mtld3d
         try PatchService.stageGamePatchFiles(for: version)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("d3d9.dll").path))
 
         version.settings.renderer = .d9vk
         try PatchService.stageGamePatchFiles(for: version)
@@ -182,6 +206,35 @@ final class PatchServiceGamePatchTests: XCTestCase {
         let bundled = try Data(contentsOf: PatchService.resourceURL(
             named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk")!)
         XCTAssertEqual(staged, bundled)
+    }
+
+    /// mtld3d prefix support stages the fake-dll markers (arch-sensitive: the
+    /// i386 marker to syswow64, the x86_64 marker to system32) so wine can
+    /// resolve the custom builtin name in any prefix.
+    func testInstallMTLD3DPrefixSupportStagesFakeDllMarkers() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "mtld3d.fake", extension: "dll", subdirectory: "Patching/mtld3d/wine/i386-windows") == nil
+                || PatchService.resourceURL(named: "mtld3d.fake", extension: "dll", subdirectory: "Patching/mtld3d/wine/x86_64-windows") == nil,
+            "Bundled mtld3d resources not resolvable under swift test (run make fetch-mtld3d)"
+        )
+
+        let prefixURL = try makeTemporaryDirectory()
+        try FileManager.default.createDirectory(
+            at: prefixURL.appendingPathComponent("drive_c/windows/system32"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: prefixURL.appendingPathComponent("drive_c/windows/syswow64"), withIntermediateDirectories: true)
+
+        try PatchService.installMTLD3DPrefixSupport(winePrefixPath: prefixURL.path)
+
+        let staged32 = try Data(contentsOf: prefixURL.appendingPathComponent("drive_c/windows/syswow64/mtld3d.dll"))
+        let bundled32 = try Data(contentsOf: PatchService.resourceURL(
+            named: "mtld3d.fake", extension: "dll", subdirectory: "Patching/mtld3d/wine/i386-windows")!)
+        XCTAssertEqual(staged32, bundled32, "syswow64/mtld3d.dll must be the i386-windows marker")
+
+        let staged64 = try Data(contentsOf: prefixURL.appendingPathComponent("drive_c/windows/system32/mtld3d.dll"))
+        let bundled64 = try Data(contentsOf: PatchService.resourceURL(
+            named: "mtld3d.fake", extension: "dll", subdirectory: "Patching/mtld3d/wine/x86_64-windows")!)
+        XCTAssertEqual(staged64, bundled64, "system32/mtld3d.dll must be the x86_64-windows marker")
     }
 
     func testRemoveGamePatchDeletesRosettax87Leftovers() throws {

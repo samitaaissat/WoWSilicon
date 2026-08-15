@@ -16,6 +16,13 @@ Derived/
 # Fetched d9mt renderer payload (make fetch-d9mt)
 Sources/WoWSiliconSwift/Resources/Patching/d9mt/
 
+# Fetched mtld3d renderer payload (make fetch-mtld3d)
+Sources/WoWSiliconSwift/Resources/Patching/mtld3d/
+
+# mtld3d payload build scratch (tools/mtld3d/build-payload.sh)
+tools/mtld3d/work/
+tools/mtld3d/dist/
+
 .*
 !.gitignore
 !.github/

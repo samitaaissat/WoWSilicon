@@ -32,7 +32,6 @@ RESOURCE_BUNDLE := $(BUILD_DIR)/arm64-apple-macosx/release/WoWSilicon-swift_WoWS
 GAME_APP_NAME := WoWSilicon Game.app
 GAME_APP := $(APP_BUNDLE)/Contents/SharedSupport/$(GAME_APP_NAME)
 GAME_APP_ID ?= com.wowsilicon.swift.game
-ROSETTA_SRC := Sources/WoWSiliconSwift/Resources/Patching/rosettax87
 
 # ---------------------------------------------------------------------------
 # Bundled Wine runtime (built by .github/workflows/runtime.yml, published as
@@ -124,6 +123,7 @@ bundle: fetch-runtime fetch-d9mt fetch-mtld3d build
 	@# so RuntimeUpdateService can tell a downloaded cache from a stale one.
 	@/usr/libexec/PlistBuddy -c "Set :WSBundledRuntimeVersion $(RUNTIME_VERSION)" "$(APP_BUNDLE)/Contents/Info.plist"
 	@/usr/libexec/PlistBuddy -c "Set :WSBundledD9MTVersion $(D9MT_VERSION)" "$(APP_BUNDLE)/Contents/Info.plist"
+	@/usr/libexec/PlistBuddy -c "Set :WSBundledMTLD3DVersion $(MTLD3D_VERSION)" "$(APP_BUNDLE)/Contents/Info.plist"
 	@cp "$(RELEASE_BIN)" "$(APP_BUNDLE)/Contents/MacOS/$(BINARY_NAME)"
 	@chmod +x "$(APP_BUNDLE)/Contents/MacOS/$(BINARY_NAME)"
 	@cp -R "$(SPARKLE_FRAMEWORK)" "$(APP_BUNDLE)/Contents/Frameworks/"
@@ -155,19 +155,22 @@ bundle: fetch-runtime fetch-d9mt fetch-mtld3d build
 	@ditto "$(D9MT_RESOURCES)/d9mtmetal/i386-windows/d9mtmetal.dll" "$(GAME_APP)/Contents/lib/wine/i386-windows/d9mtmetal.dll"
 	@ditto "$(D9MT_RESOURCES)/d9mtmetal/x86_64-windows/d9mtmetal.dll" "$(GAME_APP)/Contents/lib/wine/x86_64-windows/d9mtmetal.dll"
 	@ditto "$(D9MT_RESOURCES)/d9mtmetal/x86_64-unix/d9mtmetal.so" "$(GAME_APP)/Contents/lib/wine/x86_64-unix/d9mtmetal.so"
-	@# Wine execs the rosettax87 loader as argv[0] for i386 images
-	@# (dlls/ntdll/unix/loader.c). Bundle identity is re-resolved on exec, so the
-	@# loader — and the libRuntimeRosettax87 it locates via its own directory —
-	@# must sit in the same Contents/MacOS or Game Mode is lost at that hop.
-	@ditto "$(ROSETTA_SRC)/rosettax87" "$(GAME_APP)/Contents/MacOS/rosettax87"
-	@ditto "$(ROSETTA_SRC)/libRuntimeRosettax87" "$(GAME_APP)/Contents/MacOS/libRuntimeRosettax87"
+	@# mtld3d renderer support: the mtld3d builtin pair (PE halves + unix half)
+	@# in the runtime's lib tree; the game folder gets the native-override
+	@# d3d9.dll from the resource bundle at patch time (PatchService).
+	@ditto "$(MTLD3D_RESOURCES)/wine/i386-windows/mtld3d.dll" "$(GAME_APP)/Contents/lib/wine/i386-windows/mtld3d.dll"
+	@ditto "$(MTLD3D_RESOURCES)/wine/x86_64-windows/mtld3d.dll" "$(GAME_APP)/Contents/lib/wine/x86_64-windows/mtld3d.dll"
+	@ditto "$(MTLD3D_RESOURCES)/wine/x86_64-unix/mtld3d.so" "$(GAME_APP)/Contents/lib/wine/x86_64-unix/mtld3d.so"
 	@# Game Mode identity survives the loader re-exec only if the FINAL exec
-	@# lands on a literal Contents/MacOS path. ntdll re-execs i386 images with
-	@# argv[1] = Contents/lib/wine/x86_64-unix/wine, so ROSETTA_X87_PATH points
-	@# at wine-rosetta-shim (tools/gamemode-shim/main.c), which rewrites argv[1]
-	@# to wine-gamemode — a physical copy of that loader (the only binary with
-	@# the WINE_RESERVE segments) — before exec'ing the real rosettax87. The
-	@# loader finds ntdll.so in its own directory, hence the ntdll.so symlink.
+	@# lands on a literal Contents/MacOS path. ntdll re-execs i386 images through
+	@# $$X87_SIDECAR_PATH as [sidecar, --cooperative, <Contents/lib/wine/
+	@# x86_64-unix/wine>, ...] (runtime patch 0002), so X87_SIDECAR_PATH points
+	@# at wine-rosetta-shim (tools/gamemode-shim/main.c), which rewrites the
+	@# loader argument to wine-gamemode — a physical copy of that loader (the
+	@# only binary with the WINE_RESERVE segments) — before exec'ing the real
+	@# x87sidecar (shipped in the runtime tarball's bin/, so it is already in
+	@# Contents/MacOS). The sidecar keeps this pid and execs the target itself.
+	@# The loader finds ntdll.so in its own directory, hence the ntdll.so symlink.
 	@# wine-gamemode must NOT be named "wine": the CFBundleExecutable slot binds
 	@# the bundle Info.plist into signature validation, and this binary's
 	@# embedded org.winehq.wine __info_plist would mismatch it (SIGKILL on exec).
@@ -237,6 +240,25 @@ fetch-d9mt:
 		test -s "$(D9MT_RESOURCES)/d3d9.dll"; \
 		printf '%s' "$(D9MT_SHA256)" > "$(D9MT_RESOURCES)/.sha256"; \
 		echo "d9mt payload v$(D9MT_VERSION) staged into $(D9MT_RESOURCES)"; \
+	fi
+
+fetch-mtld3d:
+	@if [ -f "$(MTLD3D_RESOURCES)/.sha256" ] \
+		&& [ "$$(cat "$(MTLD3D_RESOURCES)/.sha256")" = "$(MTLD3D_SHA256)" ] \
+		&& [ -s "$(MTLD3D_RESOURCES)/native/i386-windows/d3d9.dll" ]; then \
+		echo "mtld3d payload v$(MTLD3D_VERSION) already staged"; \
+	else \
+		set -e; \
+		echo "Fetching mtld3d payload v$(MTLD3D_VERSION) from $(MTLD3D_URL)..."; \
+		mkdir -p "$(MTLD3D_CACHE)"; \
+		curl -fL --retry 3 -o "$(MTLD3D_CACHE)/$(MTLD3D_ASSET)" "$(MTLD3D_URL)"; \
+		echo "$(MTLD3D_SHA256)  $(MTLD3D_CACHE)/$(MTLD3D_ASSET)" | shasum -a 256 -c -; \
+		rm -rf "$(MTLD3D_RESOURCES)"; \
+		mkdir -p "$(MTLD3D_RESOURCES)"; \
+		tar -xzf "$(MTLD3D_CACHE)/$(MTLD3D_ASSET)" -C "$(MTLD3D_RESOURCES)" --strip-components=1; \
+		test -s "$(MTLD3D_RESOURCES)/native/i386-windows/d3d9.dll"; \
+		printf '%s' "$(MTLD3D_SHA256)" > "$(MTLD3D_RESOURCES)/.sha256"; \
+		echo "mtld3d payload v$(MTLD3D_VERSION) staged into $(MTLD3D_RESOURCES)"; \
 	fi
 
 dmg: bundle

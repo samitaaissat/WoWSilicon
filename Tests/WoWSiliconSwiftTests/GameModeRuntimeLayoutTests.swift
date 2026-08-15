@@ -27,13 +27,14 @@ final class GameModeRuntimeLayoutTests: XCTestCase {
         XCTAssertEqual(runtime.wineserverBinaryURL.lastPathComponent, "wineserver")
     }
 
-    /// Wine execs $ROSETTA_X87_PATH as argv[0] for i386 images with argv[1] set to
-    /// its ntdll-derived loader path in Contents/lib — a path that destroys bundle
-    /// identity at the final exec. ROSETTA_X87_PATH therefore points at the
-    /// gamemode shim, which rewrites argv[1] to the physical Contents/MacOS/wine
-    /// before exec'ing the real rosettax87 beside it.
-    func testRosettaLoaderPathIsTheGameModeShimBesideWine() throws {
-        let loader = try XCTUnwrap(runtime.rosettaLoaderURL)
+    /// Wine re-execs i386 images through $X87_SIDECAR_PATH as
+    /// [loader, --cooperative, <ntdll-derived loader path in Contents/lib>, …] —
+    /// a loader path that destroys bundle identity at the final exec.
+    /// X87_SIDECAR_PATH therefore points at the gamemode shim, which rewrites
+    /// the loader argument to the physical Contents/MacOS/wine-gamemode copy
+    /// before exec'ing the real x87sidecar beside it.
+    func testX87LoaderPathIsTheGameModeShimBesideWine() throws {
+        let loader = try XCTUnwrap(runtime.x87LoaderURL)
 
         XCTAssertEqual(
             loader.deletingLastPathComponent(),
@@ -45,7 +46,7 @@ final class GameModeRuntimeLayoutTests: XCTestCase {
     /// Depth breaks identification — the binary must sit directly in Contents/MacOS,
     /// not in a subdirectory of it.
     func testExecutablesSitDirectlyInAnAppContentsMacOSWithNoNesting() throws {
-        for url in [runtime.wineBinaryURL, runtime.wineserverBinaryURL, try XCTUnwrap(runtime.rosettaLoaderURL)] {
+        for url in [runtime.wineBinaryURL, runtime.wineserverBinaryURL, try XCTUnwrap(runtime.x87LoaderURL)] {
             let macOSDirectory = url.deletingLastPathComponent()
             let contentsDirectory = macOSDirectory.deletingLastPathComponent()
             let appDirectory = contentsDirectory.deletingLastPathComponent()

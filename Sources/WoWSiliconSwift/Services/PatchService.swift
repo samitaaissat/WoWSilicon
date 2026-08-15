@@ -37,6 +37,10 @@ enum PatchService {
     /// the whole test target fails to compile.
     nonisolated(unsafe) static var d9mtOverrideDirectory: URL?
 
+    /// Same seam for the mtld3d payload cache (see `d9mtOverrideDirectory` for
+    /// the write-once contract).
+    nonisolated(unsafe) static var mtld3dOverrideDirectory: URL?
+
     static func applyGamePatch(for version: GameVersion) throws {
         let gameURL = try stageGamePatchFiles(for: version)
 
@@ -44,9 +48,9 @@ enum PatchService {
             try installD9MTPrefixSupport(winePrefixPath: WineRegistrySupport.winePrefixURL().path)
             try registerD9MTBuiltins()
         }
-        // The wined3d renderer needs no patch-time prefix work: its Vulkan
-        // renderer is selected per-launch via WINE_D3D_CONFIG — see
-        // LaunchService.makeShellCommand.
+        if version.settings.renderer == .mtld3d {
+            try installMTLD3DPrefixSupport(winePrefixPath: WineRegistrySupport.winePrefixURL().path)
+        }
 
         if version.usesRosettaPatching && version.supportsDLLLoading {
             try patchDivxDecoder(gameURL: gameURL)
@@ -75,14 +79,17 @@ enum PatchService {
 
         try copyResource(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta", to: modsURL.appendingPathComponent("winerosetta.dll"))
         switch version.settings.renderer {
+        case .mtld3d:
+            // Native-override route (upstream INSTALL.md): the unmarked native PE
+            // goes beside the game exe and is selected by the d3d9=n,b override.
+            // The mtld3d.dll/mtld3d.so builtin pair it bridges through ships in
+            // the runtime's lib/wine tree (Makefile bundle target), and the
+            // prefix markers are staged by installMTLD3DPrefixSupport.
+            try copyResource(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows", to: gameURL.appendingPathComponent("d3d9.dll"))
+            stageMTLD3DConfigIfAbsent(in: gameURL)
         case .d9vk, .d9mt:
             let d3d9Subdirectory = version.settings.renderer == .d9mt ? "Patching/d9mt" : "Patching/d9vk"
             try copyResource(named: "d3d9", extension: "dll", subdirectory: d3d9Subdirectory, to: gameURL.appendingPathComponent("d3d9.dll"))
-        case .wined3d:
-            // wined3d is the builtin d3d9: a native DLL in the game folder would
-            // shadow it (WINEDLLOVERRIDES probes the exe's directory first), so
-            // staging means guaranteeing the file's absence.
-            try removeIfExists(gameURL.appendingPathComponent("d3d9.dll"))
         }
 
         // Remove legacy exe-patching artifacts
@@ -160,6 +167,45 @@ enum PatchService {
             try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
             try copyItem(from: source, to: destination)
         }
+    }
+
+    /// mtld3d renderer: stages the prefix markers for the custom builtin name.
+    /// Wine resolves builtin *names* through the prefix's system directories, and
+    /// wineboot only stamps placeholders for names it knows — mtld3d is not one
+    /// of them, so every prefix needs the upstream-shipped mtld3d.fake.dll copied
+    /// in once AS mtld3d.dll (i386 → syswow64, x86_64 → system32). The real
+    /// builtin pair (mtld3d.dll + mtld3d.so) lives in the runtime's lib/wine arch
+    /// dirs. No DllOverrides registration is needed: the markers carry wine's
+    /// fake-dll signature, so the loader resolves the name to the builtin on its
+    /// own (unlike d9mt, which copies real PEs and pins builtin overrides).
+    static func installMTLD3DPrefixSupport(winePrefixPath: String) throws {
+        let pairs: [(subdirectory: String, destination: String)] = [
+            ("Patching/mtld3d/wine/i386-windows", "drive_c/windows/syswow64/mtld3d.dll"),
+            ("Patching/mtld3d/wine/x86_64-windows", "drive_c/windows/system32/mtld3d.dll")
+        ]
+        let prefixURL = URL(fileURLWithPath: winePrefixPath, isDirectory: true)
+        for pair in pairs {
+            guard let source = resourceURL(named: "mtld3d.fake", extension: "dll", subdirectory: pair.subdirectory) else {
+                throw PatchServiceError.resourceMissing("\(pair.subdirectory)/mtld3d.fake.dll")
+            }
+            let destination = prefixURL.appendingPathComponent(pair.destination)
+            try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try copyItem(from: source, to: destination)
+        }
+    }
+
+    /// Stages the self-documenting sample mtld3d.conf beside the game exe when
+    /// none exists. The file is user-editable runtime configuration (mtld3d
+    /// reads it from the exe's directory), so an existing copy is never
+    /// overwritten — and a missing sample resource is not an error, because
+    /// mtld3d runs fine on defaults without any conf at all.
+    static func stageMTLD3DConfigIfAbsent(in gameURL: URL) {
+        let destination = gameURL.appendingPathComponent("mtld3d.conf")
+        guard !FileManager.default.fileExists(atPath: destination.path),
+              let source = resourceURL(named: "mtld3d", extension: "conf", subdirectory: "Patching/mtld3d") else {
+            return
+        }
+        try? FileManager.default.copyItem(at: source, to: destination)
     }
 
     /// Registers winemetal/d9mtmetal as builtin DLLs in the shared prefix so wine
@@ -255,6 +301,7 @@ enum PatchService {
         try removeIfExists(gameURL.appendingPathComponent("libDllLdr.dll"))
         try removeIfExists(gameURL.appendingPathComponent("Wow_patched.exe"))
         try removeIfExists(gameURL.appendingPathComponent("d3d9.dll"))
+        try removeIfExists(gameURL.appendingPathComponent("mtld3d.conf"))
         try removeIfExists(gameURL.appendingPathComponent("vanilla-tweaks.exe"))
         // Obsolete v2 payload — rosettax87 ships inside the app bundle since v3.
         try removeIfExists(gameURL.appendingPathComponent("rosettax87"))
@@ -413,9 +460,13 @@ enum PatchService {
         named name: String,
         extension ext: String?,
         subdirectory: String,
-        overrideDirectory: URL? = PatchService.d9mtOverrideDirectory
+        overrideDirectory: URL? = PatchService.d9mtOverrideDirectory,
+        mtld3dOverrideDirectory: URL? = PatchService.mtld3dOverrideDirectory
     ) -> URL? {
-        if let overrideURL = d9mtOverrideResourceURL(named: name, extension: ext, subdirectory: subdirectory, root: overrideDirectory) {
+        if let overrideURL = payloadOverrideResourceURL(named: name, extension: ext, subdirectory: subdirectory, payloadPrefix: "Patching/d9mt", root: overrideDirectory) {
+            return overrideURL
+        }
+        if let overrideURL = payloadOverrideResourceURL(named: name, extension: ext, subdirectory: subdirectory, payloadPrefix: "Patching/mtld3d", root: mtld3dOverrideDirectory) {
             return overrideURL
         }
 
@@ -440,16 +491,17 @@ enum PatchService {
         return nil
     }
 
-    /// Looks for a resource under a downloaded d9mt cache before falling back
-    /// to the bundled Patching/d9mt resources. `root` mirrors the extracted
-    /// tarball's own layout (d3d9.dll, winemetal/<arch>/…, d9mtmetal/<arch>/…),
-    /// so subdirectories are resolved relative to it by stripping the
-    /// "Patching/d9mt/" prefix the rest of this file passes in.
-    private static func d9mtOverrideResourceURL(named name: String, extension ext: String?, subdirectory: String, root: URL?) -> URL? {
+    /// Looks for a resource under a downloaded payload cache before falling back
+    /// to the bundled resources. `root` mirrors the extracted tarball's own
+    /// layout (e.g. d3d9.dll, winemetal/<arch>/… for d9mt; native/<arch>/…,
+    /// wine/<arch>/… for mtld3d), so subdirectories are resolved relative to it
+    /// by stripping the `payloadPrefix` the rest of this file passes in. A root
+    /// is only ever consulted for its own payload family's subdirectories.
+    private static func payloadOverrideResourceURL(named name: String, extension ext: String?, subdirectory: String, payloadPrefix: String, root: URL?) -> URL? {
         guard let root else { return nil }
-        guard subdirectory == "Patching/d9mt" || subdirectory.hasPrefix("Patching/d9mt/") else { return nil }
+        guard subdirectory == payloadPrefix || subdirectory.hasPrefix(payloadPrefix + "/") else { return nil }
 
-        let prefix = "Patching/d9mt/"
+        let prefix = payloadPrefix + "/"
         let relative = subdirectory.hasPrefix(prefix) ? String(subdirectory.dropFirst(prefix.count)) : ""
         let directory = relative.isEmpty ? root : root.appendingPathComponent(relative, isDirectory: true)
         let filename = ext.map { "\(name).\($0)" } ?? name

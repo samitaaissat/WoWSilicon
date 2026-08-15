@@ -3,7 +3,7 @@ import Foundation
 enum WineRuntimeError: LocalizedError, Equatable {
     case wineBinaryMissing(String)
     case wineBinaryNotExecutable(String)
-    case rosettaLoaderMissing
+    case x87LoaderMissing
 
     var errorDescription: String? {
         switch self {
@@ -11,8 +11,8 @@ enum WineRuntimeError: LocalizedError, Equatable {
             return "Bundled Wine runtime not found at \(path). Please reinstall WoWSilicon."
         case .wineBinaryNotExecutable(let path):
             return "Bundled Wine runtime at \(path) is not executable. Please reinstall WoWSilicon."
-        case .rosettaLoaderMissing:
-            return "Bundled rosettax87 loader not found. Please reinstall WoWSilicon."
+        case .x87LoaderMissing:
+            return "Bundled x87sidecar loader shim not found. Please reinstall WoWSilicon."
         }
     }
 }
@@ -39,7 +39,7 @@ final class WineRuntime: @unchecked Sendable {
     static let gameAppName = "WoWSilicon Game.app"
 
     private let bundleURL: URL
-    private let rosettaLoaderOverride: URL?
+    private let x87LoaderOverride: URL?
     private let fileManager = FileManager.default
     /// A writable runtime downloaded by `RuntimeUpdateService`, preferred over
     /// the bundled runtime whenever it looks structurally valid. nil (the
@@ -50,9 +50,9 @@ final class WineRuntime: @unchecked Sendable {
     /// stays free of any dependency on `PortableStorage`.
     private var overrideGameAppURL: URL?
 
-    init(bundleURL: URL = Bundle.main.bundleURL, rosettaLoaderOverride: URL? = nil) {
+    init(bundleURL: URL = Bundle.main.bundleURL, x87LoaderOverride: URL? = nil) {
         self.bundleURL = bundleURL
-        self.rosettaLoaderOverride = rosettaLoaderOverride
+        self.x87LoaderOverride = x87LoaderOverride
     }
 
     /// Points the runtime lookup at a downloaded override root. Pass nil to
@@ -116,16 +116,17 @@ final class WineRuntime: @unchecked Sendable {
         return contents.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Wine execs $ROSETTA_X87_PATH as argv[0] for i386 images with argv[1] set to
-    /// its ntdll-derived loader in Contents/lib (dlls/ntdll/unix/loader.c) — a path
-    /// that would destroy Game Mode bundle identity at the final exec. This
-    /// therefore points at the wine-rosetta-shim, which rewrites argv[1] to the
-    /// physical Contents/MacOS/wine-gamemode loader copy and execs the real
-    /// rosettax87 beside it (see tools/gamemode-shim/main.c and the Makefile
-    /// bundle target).
-    var rosettaLoaderURL: URL? {
-        if let rosettaLoaderOverride {
-            return rosettaLoaderOverride
+    /// Wine re-execs i386 images through $X87_SIDECAR_PATH as
+    /// [loader-path, --cooperative, <ntdll-derived loader in Contents/lib>, …]
+    /// (runtime patch 0002) — a loader path that would destroy Game Mode bundle
+    /// identity at the final exec. This therefore points at the wine-rosetta-shim,
+    /// which rewrites the loader argument to the physical Contents/MacOS/
+    /// wine-gamemode copy and execs the real x87sidecar beside it (see
+    /// tools/gamemode-shim/main.c and the Makefile bundle target). The sidecar
+    /// keeps the pid and execs the target itself, so identity lands on the game.
+    var x87LoaderURL: URL? {
+        if let x87LoaderOverride {
+            return x87LoaderOverride
         }
         return executablesDirectoryURL.appendingPathComponent("wine-rosetta-shim")
     }
@@ -141,9 +142,9 @@ final class WineRuntime: @unchecked Sendable {
         return url
     }
 
-    func validatedRosettaLoaderURL() throws -> URL {
-        guard let url = rosettaLoaderURL, fileManager.isExecutableFile(atPath: url.path) else {
-            throw WineRuntimeError.rosettaLoaderMissing
+    func validatedX87LoaderURL() throws -> URL {
+        guard let url = x87LoaderURL, fileManager.isExecutableFile(atPath: url.path) else {
+            throw WineRuntimeError.x87LoaderMissing
         }
         return url
     }

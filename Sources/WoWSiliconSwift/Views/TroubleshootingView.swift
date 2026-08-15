@@ -49,7 +49,7 @@ struct TroubleshootingView: View {
             HStack {
                 Text("Wine runtime: \(viewModel.runtimeVersion) (\(viewModel.runtimeSource))")
                 Spacer()
-                Text("rosettax87: bundled (\(viewModel.rosettaStatus))")
+                Text("x87sidecar loader: bundled (\(viewModel.x87LoaderStatus))")
             }
             Button("Check for Runtime Updates", action: viewModel.checkForRuntimeUpdates)
                 .buttonStyle(.bordered)

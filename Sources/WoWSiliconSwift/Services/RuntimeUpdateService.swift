@@ -22,10 +22,11 @@ struct GitHubReleaseAsset: Decodable, Sendable, Equatable {
     }
 }
 
-/// The best available wine/d9mt assets found across every `runtime-v*`
-/// release, each paired with its `.sha256` checksum sidecar. d9mt is optional:
-/// new payload versions are sometimes uploaded onto an older runtime-v tag
-/// without a matching wine bump (see docs/releasing.md, "d9mt Payload").
+/// The best available wine/d9mt/mtld3d assets found across every `runtime-v*`
+/// release, each paired with its `.sha256` checksum sidecar. The renderer
+/// payloads are optional: new payload versions are sometimes uploaded onto an
+/// older runtime-v tag without a matching wine bump (see docs/releasing.md,
+/// "d9mt Payload").
 struct RuntimeAssetSet: Equatable, Sendable {
     let wineTarballURL: URL
     let wineChecksumURL: URL
@@ -33,6 +34,9 @@ struct RuntimeAssetSet: Equatable, Sendable {
     let d9mtTarballURL: URL?
     let d9mtChecksumURL: URL?
     let d9mtVersion: Int?
+    let mtld3dTarballURL: URL?
+    let mtld3dChecksumURL: URL?
+    let mtld3dVersion: Int?
 }
 
 /// Persisted bookkeeping for the runtime self-update flow: when it last
@@ -42,8 +46,10 @@ struct RuntimeUpdateState: Codable, Equatable, Sendable {
     var lastCheckedAt: Date? = nil
     var wineCacheVersion: Int? = nil
     var d9mtCacheVersion: Int? = nil
+    var mtld3dCacheVersion: Int? = nil
     var overrideWineVersion: Int? = nil
     var overrideD9MTVersion: Int? = nil
+    var overrideMTLD3DVersion: Int? = nil
 
     static func load(fileManager: FileManager, storage: PortableStorage) -> RuntimeUpdateState {
         let url = RuntimeUpdatePaths.stateFileURL(storage: storage)
@@ -110,6 +116,7 @@ final class RuntimeUpdateService: @unchecked Sendable {
     private let fileManager: FileManager
     private let bundledWineVersion: Int
     private let bundledD9MTVersion: Int
+    private let bundledMTLD3DVersion: Int
 
     init(
         session: URLSession = URLSession(configuration: .ephemeral),
@@ -117,7 +124,8 @@ final class RuntimeUpdateService: @unchecked Sendable {
         runtime: WineRuntime = .shared,
         fileManager: FileManager = .default,
         bundledWineVersion: Int? = nil,
-        bundledD9MTVersion: Int? = nil
+        bundledD9MTVersion: Int? = nil,
+        bundledMTLD3DVersion: Int? = nil
     ) {
         self.session = session
         self.storage = storage
@@ -126,6 +134,7 @@ final class RuntimeUpdateService: @unchecked Sendable {
         let info = Bundle.main.infoDictionary ?? [:]
         self.bundledWineVersion = bundledWineVersion ?? (info["WSBundledRuntimeVersion"] as? NSNumber)?.intValue ?? 0
         self.bundledD9MTVersion = bundledD9MTVersion ?? (info["WSBundledD9MTVersion"] as? NSNumber)?.intValue ?? 0
+        self.bundledMTLD3DVersion = bundledMTLD3DVersion ?? (info["WSBundledMTLD3DVersion"] as? NSNumber)?.intValue ?? 0
     }
 
     /// Fire-and-forget background check, meant to be called once per launch.
@@ -178,6 +187,18 @@ final class RuntimeUpdateService: @unchecked Sendable {
             }
         }
 
+        if let assets,
+           let mtld3dVersion = assets.mtld3dVersion,
+           let mtld3dTarballURL = assets.mtld3dTarballURL,
+           let mtld3dChecksumURL = assets.mtld3dChecksumURL,
+           mtld3dVersion > max(bundledMTLD3DVersion, state.mtld3dCacheVersion ?? 0) {
+            do {
+                try await downloadMTLD3D(tarballURL: mtld3dTarballURL, checksumURL: mtld3dChecksumURL, version: mtld3dVersion, into: &state)
+            } catch {
+                debugPrint("RuntimeUpdateService: mtld3d update failed: \(error)")
+            }
+        }
+
         do {
             try rebuildOverrideIfNeeded(state: &state)
         } catch {
@@ -209,6 +230,7 @@ final class RuntimeUpdateService: @unchecked Sendable {
     static func selectLatestAssets(from releases: [GitHubRelease]) -> RuntimeAssetSet? {
         var bestWine: (version: Int, tarball: URL, checksum: URL)?
         var bestD9MT: (version: Int, tarball: URL, checksum: URL)?
+        var bestMTLD3D: (version: Int, tarball: URL, checksum: URL)?
 
         for release in releases where release.tagName.hasPrefix("runtime-v") {
             var urlsByName: [String: URL] = [:]
@@ -226,6 +248,11 @@ final class RuntimeUpdateService: @unchecked Sendable {
                    version > (bestD9MT?.version ?? 0) {
                     bestD9MT = (version, asset.browserDownloadURL, checksumURL)
                 }
+                if let version = mtld3dTarballVersion(filename: asset.name),
+                   let checksumURL = urlsByName["\(asset.name).sha256"],
+                   version > (bestMTLD3D?.version ?? 0) {
+                    bestMTLD3D = (version, asset.browserDownloadURL, checksumURL)
+                }
             }
         }
 
@@ -236,7 +263,10 @@ final class RuntimeUpdateService: @unchecked Sendable {
             wineVersion: bestWine.version,
             d9mtTarballURL: bestD9MT?.tarball,
             d9mtChecksumURL: bestD9MT?.checksum,
-            d9mtVersion: bestD9MT?.version
+            d9mtVersion: bestD9MT?.version,
+            mtld3dTarballURL: bestMTLD3D?.tarball,
+            mtld3dChecksumURL: bestMTLD3D?.checksum,
+            mtld3dVersion: bestMTLD3D?.version
         )
     }
 
@@ -249,6 +279,13 @@ final class RuntimeUpdateService: @unchecked Sendable {
 
     static func d9mtTarballVersion(filename: String) -> Int? {
         let prefix = "d9mt-"
+        let suffix = ".tar.gz"
+        guard filename.hasPrefix(prefix), filename.hasSuffix(suffix) else { return nil }
+        return Int(filename.dropFirst(prefix.count).dropLast(suffix.count))
+    }
+
+    static func mtld3dTarballVersion(filename: String) -> Int? {
+        let prefix = "mtld3d-"
         let suffix = ".tar.gz"
         guard filename.hasPrefix(prefix), filename.hasSuffix(suffix) else { return nil }
         return Int(filename.dropFirst(prefix.count).dropLast(suffix.count))
@@ -347,6 +384,40 @@ final class RuntimeUpdateService: @unchecked Sendable {
         state.d9mtCacheVersion = version
     }
 
+    private func downloadMTLD3D(tarballURL: URL, checksumURL: URL, version: Int, into state: inout RuntimeUpdateState) async throws {
+        let tarballData = try await downloadAndVerify(tarballURL: tarballURL, checksumURL: checksumURL)
+
+        let staging = RuntimeUpdatePaths.stagingDirectory(storage: storage, label: "mtld3d")
+        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: staging) }
+
+        let tarballFile = staging.appendingPathComponent("mtld3d.tar.gz")
+        try tarballData.write(to: tarballFile)
+
+        let extracted = staging.appendingPathComponent("extracted", isDirectory: true)
+        try fileManager.createDirectory(at: extracted, withIntermediateDirectories: true)
+
+        // Strip the tarball's leading "mtld3d/" component so the cache mirrors
+        // the bundled Patching/mtld3d layout exactly (see tools/mtld3d/build-payload.sh).
+        let extraction = try ProcessRunner.run(
+            executablePath: "/usr/bin/tar",
+            arguments: ["-xzf", tarballFile.path, "-C", extracted.path, "--strip-components=1"],
+            timeout: 120
+        )
+        guard extraction.exitCode == 0 else {
+            throw RuntimeUpdateError.extractionFailed(extraction.combinedOutput)
+        }
+        guard fileManager.fileExists(atPath: extracted.appendingPathComponent("native/i386-windows/d3d9.dll").path) else {
+            throw RuntimeUpdateError.extractionFailed("native/i386-windows/d3d9.dll missing after extraction")
+        }
+
+        let cacheDirectory = RuntimeUpdatePaths.mtld3dCacheDirectory(storage: storage)
+        try? fileManager.removeItem(at: cacheDirectory)
+        try ditto(from: extracted, to: cacheDirectory)
+
+        state.mtld3dCacheVersion = version
+    }
+
     // MARK: - Override assembly
 
     /// Rebuilds the override game bundle only when the desired (wine, d9mt)
@@ -359,18 +430,24 @@ final class RuntimeUpdateService: @unchecked Sendable {
     func rebuildOverrideIfNeeded(state: inout RuntimeUpdateState) throws {
         let effectiveWineVersion = max(bundledWineVersion, state.wineCacheVersion ?? 0)
         let effectiveD9MTVersion = max(bundledD9MTVersion, state.d9mtCacheVersion ?? 0)
+        let effectiveMTLD3DVersion = max(bundledMTLD3DVersion, state.mtld3dCacheVersion ?? 0)
         let overrideURL = RuntimeUpdatePaths.overrideGameAppURL(storage: storage)
 
-        guard effectiveWineVersion > bundledWineVersion || effectiveD9MTVersion > bundledD9MTVersion else {
+        guard effectiveWineVersion > bundledWineVersion
+            || effectiveD9MTVersion > bundledD9MTVersion
+            || effectiveMTLD3DVersion > bundledMTLD3DVersion else {
             if fileManager.fileExists(atPath: overrideURL.path) {
                 try? fileManager.removeItem(at: overrideURL)
             }
             state.overrideWineVersion = nil
             state.overrideD9MTVersion = nil
+            state.overrideMTLD3DVersion = nil
             return
         }
 
-        guard state.overrideWineVersion != effectiveWineVersion || state.overrideD9MTVersion != effectiveD9MTVersion else {
+        guard state.overrideWineVersion != effectiveWineVersion
+            || state.overrideD9MTVersion != effectiveD9MTVersion
+            || state.overrideMTLD3DVersion != effectiveMTLD3DVersion else {
             return
         }
 
@@ -384,6 +461,9 @@ final class RuntimeUpdateService: @unchecked Sendable {
         if effectiveD9MTVersion > bundledD9MTVersion {
             try overlayD9MT(from: RuntimeUpdatePaths.d9mtCacheDirectory(storage: storage), into: staging)
         }
+        if effectiveMTLD3DVersion > bundledMTLD3DVersion {
+            try overlayMTLD3D(from: RuntimeUpdatePaths.mtld3dCacheDirectory(storage: storage), into: staging)
+        }
 
         try? fileManager.removeItem(at: overrideURL)
         try fileManager.createDirectory(at: overrideURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -391,6 +471,7 @@ final class RuntimeUpdateService: @unchecked Sendable {
 
         state.overrideWineVersion = effectiveWineVersion
         state.overrideD9MTVersion = effectiveD9MTVersion
+        state.overrideMTLD3DVersion = effectiveMTLD3DVersion
     }
 
     /// Overlays a freshly downloaded wine build onto a staged copy of the
@@ -419,6 +500,26 @@ final class RuntimeUpdateService: @unchecked Sendable {
         let wineGamemodeDestination = macOSDirectory.appendingPathComponent("wine-gamemode")
         try? fileManager.removeItem(at: wineGamemodeDestination)
         try fileManager.copyItem(at: libDirectory.appendingPathComponent("wine/x86_64-unix/wine"), to: wineGamemodeDestination)
+    }
+
+    /// Overlays the mtld3d builtin pair onto the staged game bundle's lib tree
+    /// (same three files the Makefile stages at build time). The native
+    /// d3d9.dll and prefix markers are not part of the bundle: PatchService
+    /// stages those from the mtld3d cache directly (mtld3dOverrideDirectory).
+    private func overlayMTLD3D(from mtld3dCache: URL, into stagingRoot: URL) throws {
+        let libWineDirectory = stagingRoot.appendingPathComponent("Contents/lib/wine", isDirectory: true)
+        let pairs: [(source: String, destination: String)] = [
+            ("wine/i386-windows/mtld3d.dll", "i386-windows/mtld3d.dll"),
+            ("wine/x86_64-windows/mtld3d.dll", "x86_64-windows/mtld3d.dll"),
+            ("wine/x86_64-unix/mtld3d.so", "x86_64-unix/mtld3d.so"),
+        ]
+        for pair in pairs {
+            let sourceURL = mtld3dCache.appendingPathComponent(pair.source)
+            let destinationURL = libWineDirectory.appendingPathComponent(pair.destination)
+            try fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? fileManager.removeItem(at: destinationURL)
+            try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        }
     }
 
     /// Overlays winemetal/d9mtmetal builtins onto the staged game bundle's lib

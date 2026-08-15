@@ -29,6 +29,13 @@ enum RuntimeUpdatePaths {
         rootDirectory(storage: storage).appendingPathComponent("d9mt-cache", isDirectory: true)
     }
 
+    /// The most recently downloaded mtld3d payload, extracted flat — same
+    /// layout as the bundled Patching/mtld3d resources (native/…, wine/…,
+    /// mtld3d.conf).
+    static func mtld3dCacheDirectory(storage: PortableStorage = .shared) -> URL {
+        rootDirectory(storage: storage).appendingPathComponent("mtld3d-cache", isDirectory: true)
+    }
+
     /// The assembled override runtime: a full nested game bundle (same
     /// geometry as the one staged inside the app at build time) built from
     /// the bundled baseline plus whichever of the wine/d9mt caches above beat

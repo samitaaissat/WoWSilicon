@@ -23,18 +23,18 @@ final class TelemetryRendererTests: XCTestCase {
         XCTAssertEqual(context.renderer, "d9mt")
     }
 
-    func testContextReportsD9vkWhenVersionUsesDefaultRenderer() {
+    func testContextReportsD9vkWhenVersionUsesD9vk() {
         let context = TelemetryEventContext(version: makeVersion(renderer: .d9vk))
         XCTAssertEqual(context.renderer, "d9vk")
     }
 
-    func testContextReportsD9vkWhenVersionIsNil() {
+    func testContextReportsDefaultRendererWhenVersionIsNil() {
         let context = TelemetryEventContext(version: nil)
-        XCTAssertEqual(context.renderer, "d9vk")
+        XCTAssertEqual(context.renderer, "mtld3d")
     }
 
-    func testContextReportsWineD3DWhenVersionUsesWineD3D() {
-        let context = TelemetryEventContext(version: makeVersion(renderer: .wined3d))
-        XCTAssertEqual(context.renderer, "wined3d")
+    func testContextReportsMTLD3DWhenVersionUsesMTLD3D() {
+        let context = TelemetryEventContext(version: makeVersion(renderer: .mtld3d))
+        XCTAssertEqual(context.renderer, "mtld3d")
     }
 }

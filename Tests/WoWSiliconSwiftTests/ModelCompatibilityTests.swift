@@ -80,36 +80,47 @@ final class ModelCompatibilityTests: XCTestCase {
         XCTAssertEqual(roundTripped.crossOverPath, "/Applications/CrossOver.app")
     }
 
-    func testVersionSettingsWithoutRendererDecodesToD9vk() throws {
+    func testVersionSettingsWithoutRendererDecodesToMTLD3D() throws {
         let json = #"{"enableMetalHud":true}"#.data(using: .utf8)!
         let settings = try JSONDecoder().decode(VersionSettings.self, from: json)
-        XCTAssertEqual(settings.renderer, .d9vk)
+        XCTAssertEqual(settings.renderer, .mtld3d)
         XCTAssertTrue(settings.enableMetalHud)
     }
 
     func testVersionSettingsRendererRoundTrip() throws {
-        var settings = VersionSettings()
-        settings.renderer = .d9mt
-        let data = try JSONEncoder().encode(settings)
-        let decoded = try JSONDecoder().decode(VersionSettings.self, from: data)
-        XCTAssertEqual(decoded.renderer, .d9mt)
+        for renderer in RendererBackend.allCases {
+            var settings = VersionSettings()
+            settings.renderer = renderer
+            let data = try JSONEncoder().encode(settings)
+            let decoded = try JSONDecoder().decode(VersionSettings.self, from: data)
+            XCTAssertEqual(decoded.renderer, renderer)
+        }
     }
 
-    func testVersionSettingsWineD3DRendererRoundTrip() throws {
-        var settings = VersionSettings()
-        settings.renderer = .wined3d
-        let data = try JSONEncoder().encode(settings)
-        let decoded = try JSONDecoder().decode(VersionSettings.self, from: data)
-        XCTAssertEqual(decoded.renderer, .wined3d)
+    /// An explicitly stored legacy choice keeps being honored — switching the
+    /// default must never override what the user picked.
+    func testVersionSettingsExplicitD9vkIsPreserved() throws {
+        let json = #"{"renderer":"d9vk"}"#.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(VersionSettings.self, from: json)
+        XCTAssertEqual(settings.renderer, .d9vk)
+    }
+
+    /// wined3d was removed in favor of mtld3d; a stored "wined3d" migrates to
+    /// its replacement instead of silently landing on an unrelated backend.
+    func testVersionSettingsWineD3DMigratesToMTLD3D() throws {
+        let json = #"{"renderer":"wined3d","enableMetalHud":true}"#.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(VersionSettings.self, from: json)
+        XCTAssertEqual(settings.renderer, .mtld3d)
+        XCTAssertTrue(settings.enableMetalHud)
     }
 
     /// Rollback safety: a versions.json written by a newer build with a renderer
-    /// this build doesn't know must decode (falling back to d9vk), not fail the
-    /// whole load and reset the user's versions.
-    func testVersionSettingsUnknownRendererFallsBackToD9vk() throws {
+    /// this build doesn't know must decode (falling back to the default), not
+    /// fail the whole load and reset the user's versions.
+    func testVersionSettingsUnknownRendererFallsBackToDefault() throws {
         let json = #"{"renderer":"metal4d","enableMetalHud":true}"#.data(using: .utf8)!
         let settings = try JSONDecoder().decode(VersionSettings.self, from: json)
-        XCTAssertEqual(settings.renderer, .d9vk)
+        XCTAssertEqual(settings.renderer, .mtld3d)
         XCTAssertTrue(settings.enableMetalHud)
     }
 }

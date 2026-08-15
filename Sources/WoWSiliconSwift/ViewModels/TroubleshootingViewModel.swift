@@ -16,7 +16,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
     @Published var status: Status = .idle
     @Published var runtimeVersion: String = "Not found"
     @Published var runtimeSource: String = "bundled"
-    @Published var rosettaStatus: String = "missing"
+    @Published var x87LoaderStatus: String = "missing"
     @Published var storageDescription: String = ""
     @Published var debugLog: String = ""
     private var fullDebugLog: String = ""
@@ -44,8 +44,8 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
             let runtime = WineRuntime.shared
             let version = runtime.runtimeVersion ?? "Not found"
             let source = runtime.isUsingDownloadedRuntime ? "downloaded update" : "bundled"
-            // rosettaLoaderURL is a constructed path (never nil) — probe the file.
-            let rosetta = (try? runtime.validatedRosettaLoaderURL()) != nil ? "ok" : "missing"
+            // x87LoaderURL is a constructed path (never nil) — probe the file.
+            let x87Loader = (try? runtime.validatedX87LoaderURL()) != nil ? "ok" : "missing"
             let storageDescription = PortableStorage.shared.displayDescription
 
             // Capture current toggle states
@@ -61,7 +61,7 @@ final class TroubleshootingViewModel: ObservableObject, Identifiable {
             Task { @MainActor in
                 self.runtimeVersion = version
                 self.runtimeSource = source
-                self.rosettaStatus = rosetta
+                self.x87LoaderStatus = x87Loader
                 self.storageDescription = storageDescription
                 self.debugLog = result.preview
                 self.fullDebugLog = result.full

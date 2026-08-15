@@ -4,7 +4,7 @@ import AppKit
 enum LaunchServiceError: LocalizedError {
     case alreadyRunning
     case gamePathMissing
-    case rosettaMissing(String)
+    case x87LoaderMissing(String)
     case executableMissing(String)
     case vanillaTweaksMissing
     case patchNotApplied
@@ -18,8 +18,8 @@ enum LaunchServiceError: LocalizedError {
             return "The game is already running."
         case .gamePathMissing:
             return "Game path is not set. Please configure it before launching."
-        case .rosettaMissing:
-            return "Bundled rosettax87 loader not found. Please reinstall WoWSilicon."
+        case .x87LoaderMissing:
+            return "Bundled x87sidecar loader shim not found. Please reinstall WoWSilicon."
         case .executableMissing(let path):
             return "WoW executable not found at \(path). Please verify your game installation."
         case .vanillaTweaksMissing:
@@ -86,11 +86,11 @@ final class LaunchService: @unchecked Sendable {
         let gameURL = URL(fileURLWithPath: trimmedGame, isDirectory: true)
 
         let wineBinaryURL = try WineRuntime.shared.validatedWineBinaryURL()
-        let rosettaLoaderURL: URL
+        let x87LoaderURL: URL
         do {
-            rosettaLoaderURL = try WineRuntime.shared.validatedRosettaLoaderURL()
+            x87LoaderURL = try WineRuntime.shared.validatedX87LoaderURL()
         } catch {
-            throw LaunchServiceError.rosettaMissing(WineRuntime.shared.rosettaLoaderURL?.path ?? "app bundle resources")
+            throw LaunchServiceError.x87LoaderMissing(WineRuntime.shared.x87LoaderURL?.path ?? "app bundle resources")
         }
 
         let wowExecutableURL: URL
@@ -129,7 +129,7 @@ final class LaunchService: @unchecked Sendable {
             gamePath: gameURL.path,
             executablePath: wowExecutableURL.path,
             wineBinaryPath: wineBinaryURL.path,
-            rosettaLoaderPath: rosettaLoaderURL.path,
+            x87LoaderPath: x87LoaderURL.path,
             winePrefixPath: PortableStorage.shared.prefixURL.path,
             settings: version.settings,
             sessionLogPath: sessionLogPath
@@ -232,7 +232,7 @@ final class LaunchService: @unchecked Sendable {
         gamePath: String,
         executablePath: String,
         wineBinaryPath: String,
-        rosettaLoaderPath: String?,
+        x87LoaderPath: String?,
         winePrefixPath: String,
         settings: VersionSettings,
         dllOverrides: String = "mscoree=d;mshtml=d",
@@ -240,11 +240,10 @@ final class LaunchService: @unchecked Sendable {
         sessionLogPath: String? = nil
     ) -> String {
         let mtlValue = settings.enableMetalHud ? "1" : "0"
-        // The d3d9 disposition belongs to the renderer, not the call site: d9vk and
-        // d9mt stage a native d3d9.dll into the game folder (native first, builtin
-        // fallback for exes launched from folders without one); wined3d must load
-        // the builtin even when a stray native d3d9.dll is left behind.
-        let d3d9Override = settings.renderer == .wined3d ? "d3d9=b" : "d3d9=n,b"
+        // Every renderer stages a native d3d9.dll into the game folder (mtld3d's
+        // native-override route, d9vk's and d9mt's translation DLLs alike):
+        // native first, builtin fallback for exes launched from folders without one.
+        let d3d9Override = "d3d9=n,b"
         // Pinned explicitly, never omitted: msync is compiled into the bundled
         // runtime and gated on atoi(getenv("WINEMSYNC")), and a client that
         // disagrees with the running wineserver calls exit(1). Emitting 0 keeps an
@@ -257,32 +256,35 @@ final class LaunchService: @unchecked Sendable {
         let wineserverPath = (wineBinaryPath as NSString).deletingLastPathComponent + "/wineserver"
         // Renderer-specific env: d9vk runs on MoltenVK and needs the sync-submit /
         // async flags; d9mt talks to Metal directly and takes its own toggles
-        // (both default on upstream; set explicitly for clarity). wined3d presents
-        // through MoltenVK like d9vk (same sync-submit rationale) but DXVK_ASYNC is
-        // meaningless to it; WINE_D3D_CONFIG selects its Vulkan renderer per launch
-        // (overrides any registry value) — mandatory, not tuning, because the
-        // GL-less runtime resolves the AUTO renderer to the no-3D GDI fallback
-        // (fake "GeForce 6800" adapter, black screen in-game). Env instead of a
-        // prefix registry pin: the renderer choice is per-version while the prefix
-        // is shared, and env survives prefix rebuilds.
+        // (both default on upstream; set explicitly for clarity). mtld3d needs no
+        // env: its configuration lives in mtld3d.conf beside the game exe (staged
+        // at patch time), and everything else defaults sensibly upstream. Env
+        // instead of a prefix registry pin: the renderer choice is per-version
+        // while the prefix is shared, and env survives prefix rebuilds.
         let rendererEnv: String
         switch settings.renderer {
-        case .d9vk:
-            rendererEnv = "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
+        case .mtld3d:
+            rendererEnv = ""
         case .d9mt:
             rendererEnv = "D9MT_METALLIB_CACHE=1 D9MT_ASYNC=1"
-        case .wined3d:
-            rendererEnv = "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 WINE_D3D_CONFIG=\"renderer=vulkan\""
+        case .d9vk:
+            rendererEnv = "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1"
         }
-        let baseEnv = "WINEDLLOVERRIDES=\"\(d3d9Override);\(dllOverrides)\" MTL_HUD_ENABLED=\(mtlValue) \(rendererEnv) WINEMSYNC=\(msyncValue) WINESERVER=\(doubleQuote(wineserverPath))"
+        let baseEnv = [
+            "WINEDLLOVERRIDES=\"\(d3d9Override);\(dllOverrides)\"",
+            "MTL_HUD_ENABLED=\(mtlValue)",
+            rendererEnv,
+            "WINEMSYNC=\(msyncValue)",
+            "WINESERVER=\(doubleQuote(wineserverPath))"
+        ].filter { !$0.isEmpty }.joined(separator: " ")
         let custom = settings.environmentVariables
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: ";", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         var envParts: [String] = []
-        if let rosettaLoaderPath {
-            envParts.append("ROSETTA_X87_PATH=\(doubleQuote(rosettaLoaderPath))")
+        if let x87LoaderPath {
+            envParts.append("X87_SIDECAR_PATH=\(doubleQuote(x87LoaderPath))")
         }
         if !custom.isEmpty {
             envParts.append(quoteCustomEnvironment(custom))
@@ -397,7 +399,7 @@ final class LaunchService: @unchecked Sendable {
     static func makeLauncherShellCommand(
         exePath: String,
         wineBinaryPath: String,
-        rosettaLoaderPath: String?,
+        x87LoaderPath: String?,
         winePrefixPath: String,
         settings: VersionSettings,
         sessionLogPath: String? = nil
@@ -407,7 +409,7 @@ final class LaunchService: @unchecked Sendable {
             gamePath: exeURL.deletingLastPathComponent().path,
             executablePath: exeURL.path,
             wineBinaryPath: wineBinaryPath,
-            rosettaLoaderPath: rosettaLoaderPath,
+            x87LoaderPath: x87LoaderPath,
             winePrefixPath: winePrefixPath,
             settings: settings,
             dllOverrides: "mscoree=b;mshtml=d",
@@ -452,13 +454,13 @@ final class LaunchService: @unchecked Sendable {
             return
         }
 
-        let rosettaLoaderPath = (try? WineRuntime.shared.validatedRosettaLoaderURL())?.path
+        let x87LoaderPath = (try? WineRuntime.shared.validatedX87LoaderURL())?.path
 
         let shellCommand = LaunchService.makeShellCommand(
             gamePath: installerURL.deletingLastPathComponent().path,
             executablePath: installerURL.path,
             wineBinaryPath: wineBinaryURL.path,
-            rosettaLoaderPath: rosettaLoaderPath,
+            x87LoaderPath: x87LoaderPath,
             winePrefixPath: PortableStorage.shared.prefixURL.path,
             settings: version.settings
         )
@@ -500,19 +502,19 @@ final class LaunchService: @unchecked Sendable {
             return
         }
 
-        let rosettaLoaderURL: URL
+        let x87LoaderURL: URL
         do {
-            rosettaLoaderURL = try WineRuntime.shared.validatedRosettaLoaderURL()
+            x87LoaderURL = try WineRuntime.shared.validatedX87LoaderURL()
         } catch {
-            let expected = WineRuntime.shared.rosettaLoaderURL?.path ?? "app bundle resources"
-            DispatchQueue.main.async { completion(.failure(.rosettaMissing(expected))) }
+            let expected = WineRuntime.shared.x87LoaderURL?.path ?? "app bundle resources"
+            DispatchQueue.main.async { completion(.failure(.x87LoaderMissing(expected))) }
             return
         }
 
         let shellCommand = LaunchService.makeLauncherShellCommand(
             exePath: exePath,
             wineBinaryPath: wineBinaryURL.path,
-            rosettaLoaderPath: rosettaLoaderURL.path,
+            x87LoaderPath: x87LoaderURL.path,
             winePrefixPath: PortableStorage.shared.prefixURL.path,
             settings: version.settings
         )
@@ -746,6 +748,10 @@ final class LaunchService: @unchecked Sendable {
         // matched every Wine app on the machine and is deliberately gone.
         pkill(["-9", "-f", runtime.wineBinaryURL.path])
         pkill(["-9", "-f", runtime.wineserverBinaryURL.path])
+        // The cooperative JIT server survives its tracee only briefly, but a
+        // wedged one must not outlive a force quit. rosettax87 covers sessions
+        // started under a pre-sidecar runtime override.
+        pkill(["-9", "-f", "x87sidecar"])
         pkill(["-9", "-f", "rosettax87"])
     }
 }

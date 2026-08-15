@@ -64,18 +64,18 @@ final class WineRuntimeTests: XCTestCase {
     func testValidatedRosettaLoaderURLReturnsExecutableOverride() throws {
         let loaderURL = try makeTemporaryDirectory().appendingPathComponent("rosettax87")
         try makeFile(at: loaderURL, posixPermissions: 0o755)
-        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory(), rosettaLoaderOverride: loaderURL)
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory(), x87LoaderOverride: loaderURL)
 
-        XCTAssertEqual(runtime.rosettaLoaderURL, loaderURL)
-        XCTAssertEqual(try runtime.validatedRosettaLoaderURL(), loaderURL)
+        XCTAssertEqual(runtime.x87LoaderURL, loaderURL)
+        XCTAssertEqual(try runtime.validatedX87LoaderURL(), loaderURL)
     }
 
     func testValidatedRosettaLoaderURLThrowsRosettaLoaderMissingWhenOverrideAbsent() throws {
         let loaderURL = try makeTemporaryDirectory().appendingPathComponent("rosettax87")
-        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory(), rosettaLoaderOverride: loaderURL)
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory(), x87LoaderOverride: loaderURL)
 
-        XCTAssertThrowsError(try runtime.validatedRosettaLoaderURL()) { error in
-            XCTAssertEqual(error as? WineRuntimeError, .rosettaLoaderMissing)
+        XCTAssertThrowsError(try runtime.validatedX87LoaderURL()) { error in
+            XCTAssertEqual(error as? WineRuntimeError, .x87LoaderMissing)
         }
     }
 

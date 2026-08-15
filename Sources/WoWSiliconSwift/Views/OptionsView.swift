@@ -80,12 +80,12 @@ struct OptionsView: View {
     /// re-stages the game patch, so all three captions carry the same closing note.
     private var rendererCaption: String {
         switch viewModel.rendererBinding().wrappedValue {
-        case .d9vk:
-            return "d9vk translates D3D9 to Vulkan on MoltenVK — the default and most-tested path. Takes effect after re-patching."
+        case .mtld3d:
+            return "mtld3d translates D3D9 straight to Metal with x87sidecar acceleration — the recommended path. No MSAA (set Multisampling to Off; the game falls back cleanly), and fullscreen never switches the display resolution — tune render.scale in mtld3d.conf beside the game instead. Takes effect after re-patching."
         case .d9mt:
-            return "d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: requires Xcode command line tools and does not support MSAA — set Multisampling to Off here and in the in-game video options, or the screen renders black. Switch back to d9vk if the game misbehaves. Takes effect after re-patching."
-        case .wined3d:
-            return "wined3d is Wine's own Direct3D 9 running on its Vulkan renderer (via MoltenVK) — no translation DLL in the game folder. Experimental: expect different performance and visuals than d9vk; switch back if the game misbehaves. Takes effect after re-patching."
+            return "d9mt translates D3D9 to Metal directly, skipping Vulkan. Experimental: does not support MSAA — set Multisampling to Off here and in the in-game video options, or the screen renders black. Switch back to mtld3d if the game misbehaves. Takes effect after re-patching."
+        case .d9vk:
+            return "d9vk translates D3D9 to Vulkan on MoltenVK — the long-serving legacy path, kept as a fallback. Takes effect after re-patching."
         }
     }
 
@@ -93,9 +93,9 @@ struct OptionsView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Picker("Renderer", selection: viewModel.rendererBinding()) {
-                    Text("d9vk (Vulkan)").tag(RendererBackend.d9vk)
+                    Text("mtld3d (Metal, recommended)").tag(RendererBackend.mtld3d)
                     Text("d9mt (Metal, experimental)").tag(RendererBackend.d9mt)
-                    Text("wined3d (Wine built-in, experimental)").tag(RendererBackend.wined3d)
+                    Text("d9vk (Vulkan, legacy)").tag(RendererBackend.d9vk)
                 }
                 .pickerStyle(.menu)
                 Text(rendererCaption)

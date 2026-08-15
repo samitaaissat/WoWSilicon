@@ -3,15 +3,20 @@ import XCTest
 
 final class LaunchCommandTests: XCTestCase {
     private let winePath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wine"
-    private let loaderPath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/rosettax87"
+    private let loaderPath = "/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wine-rosetta-shim"
     private let prefixPath = "/Applications/WoWSilicon Data/prefix"
 
+    /// Full-string pin for the default (mtld3d) launch: the env block stays
+    /// exactly as designed — X87_SIDECAR_PATH drives the cooperative sidecar
+    /// re-exec (runtime patch 0002), d3d9=n,b selects the native-override
+    /// d3d9.dll, and mtld3d itself needs no renderer env (mtld3d.conf beside
+    /// the exe carries its configuration).
     func testFullCommandWithLoaderAndDefaultSettings() {
         let command = LaunchService.makeShellCommand(
             gamePath: "/Games/WoW Classic",
             executablePath: "/Games/WoW Classic/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings()
         )
@@ -19,12 +24,34 @@ final class LaunchCommandTests: XCTestCase {
         XCTAssertEqual(
             command,
             "cd \"/Games/WoW Classic\" && " +
-            "ROSETTA_X87_PATH=\"\(loaderPath)\" " +
-            "WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=0 MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 DXVK_ASYNC=1 " +
+            "X87_SIDECAR_PATH=\"\(loaderPath)\" " +
+            "WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=0 " +
             "WINEMSYNC=0 WINESERVER=\"/Applications/WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/MacOS/wineserver\" " +
             "WINEPREFIX=\"/Applications/WoWSilicon Data/prefix\" " +
             "\"\(winePath)\" \"/Games/WoW Classic/WoW.exe\""
         )
+    }
+
+    /// mtld3d must not inherit the other backends' tuning env: no MoltenVK
+    /// sync-submit flag, no DXVK/d9mt toggles, and no leftover WINE_D3D_CONFIG
+    /// (the wined3d selector died with the wined3d backend).
+    func testMakeShellCommandWithMTLD3DSetsNoRendererEnv() {
+        var settings = VersionSettings()
+        settings.renderer = .mtld3d
+        let command = LaunchService.makeShellCommand(
+            gamePath: "/Games/WoW",
+            executablePath: "/Games/WoW/WoW.exe",
+            wineBinaryPath: "/rt/bin/wine",
+            x87LoaderPath: nil,
+            winePrefixPath: "/prefix",
+            settings: settings
+        )
+
+        XCTAssertFalse(command.contains("MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS"))
+        XCTAssertFalse(command.contains("DXVK_ASYNC"))
+        XCTAssertFalse(command.contains("D9MT_"))
+        XCTAssertFalse(command.contains("WINE_D3D_CONFIG"))
+        XCTAssertTrue(command.contains(#"WINEDLLOVERRIDES="d3d9=n,b;mscoree=d;mshtml=d""#))
     }
 
     func testMakeShellCommandWithD9mtRendererDropsMoltenVKVars() {
@@ -34,7 +61,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: settings
         )
@@ -46,13 +73,14 @@ final class LaunchCommandTests: XCTestCase {
         XCTAssertTrue(command.contains(#"WINEDLLOVERRIDES="d3d9=n,b;mscoree=d;mshtml=d""#))
     }
 
-    func testMakeShellCommandWithD9vkRendererKeepsCurrentEnv() {
-        let settings = VersionSettings() // default .d9vk
+    func testMakeShellCommandWithD9vkRendererKeepsMoltenVKEnv() {
+        var settings = VersionSettings()
+        settings.renderer = .d9vk
         let command = LaunchService.makeShellCommand(
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: "/prefix",
             settings: settings
         )
@@ -62,96 +90,17 @@ final class LaunchCommandTests: XCTestCase {
         XCTAssertFalse(command.contains("D9MT_"))
     }
 
-    func testMakeShellCommandWithWineD3DRendererForcesBuiltinD3D9() {
-        var settings = VersionSettings()
-        settings.renderer = .wined3d
-        let command = LaunchService.makeShellCommand(
-            gamePath: "/Games/WoW",
-            executablePath: "/Games/WoW/WoW.exe",
-            wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
-            winePrefixPath: "/prefix",
-            settings: settings
-        )
-
-        // Builtin-only d3d9: a stray native d3d9.dll must never shadow wined3d.
-        XCTAssertTrue(command.contains(#"WINEDLLOVERRIDES="d3d9=b;mscoree=d;mshtml=d""#))
-        // MoltenVK is still the presentation path (same rationale as d9vk)...
-        XCTAssertTrue(command.contains("MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1"))
-        // ...but the DXVK/d9mt-specific toggles are meaningless to wined3d.
-        XCTAssertFalse(command.contains("DXVK_ASYNC"))
-        XCTAssertFalse(command.contains("D9MT_"))
-    }
-
-    /// The wined3d renderer is selected per-launch through WINE_D3D_CONFIG (env
-    /// beats the registry in wined3d_main.c, and env needs no prefix state):
-    /// full-string pin so the env block stays exactly as verified on hardware.
-    func testWineD3DCommandSelectsVulkanRendererViaEnvironment() {
-        var settings = VersionSettings()
-        settings.renderer = .wined3d
-        let command = LaunchService.makeShellCommand(
-            gamePath: "/Games/WoW",
-            executablePath: "/Games/WoW/WoW.exe",
-            wineBinaryPath: "/rt/bin/wine",
-            rosettaLoaderPath: nil,
-            winePrefixPath: "/prefix",
-            settings: settings
-        )
-
-        XCTAssertEqual(
-            command,
-            "cd \"/Games/WoW\" && " +
-            "WINEDLLOVERRIDES=\"d3d9=b;mscoree=d;mshtml=d\" MTL_HUD_ENABLED=0 " +
-            "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1 WINE_D3D_CONFIG=\"renderer=vulkan\" " +
-            "WINEMSYNC=0 WINESERVER=\"/rt/bin/wineserver\" WINEPREFIX=\"/prefix\" " +
-            "\"/rt/bin/wine\" \"/Games/WoW/WoW.exe\""
-        )
-    }
-
-    /// The other renderers must not carry the wined3d selector: their native
-    /// d3d9.dll shadows the builtin, and a stray WINE_D3D_CONFIG would only
-    /// confuse debugging.
-    func testNonWineD3DCommandsDoNotSetWineD3DConfig() {
-        for renderer in [RendererBackend.d9vk, .d9mt] {
-            var settings = VersionSettings()
-            settings.renderer = renderer
-            let command = LaunchService.makeShellCommand(
-                gamePath: "/Games/WoW",
-                executablePath: "/Games/WoW/WoW.exe",
-                wineBinaryPath: "/rt/bin/wine",
-                rosettaLoaderPath: nil,
-                winePrefixPath: "/prefix",
-                settings: settings
-            )
-            XCTAssertFalse(command.contains("WINE_D3D_CONFIG"), "\(renderer) must not set WINE_D3D_CONFIG")
-        }
-    }
-
-    func testLauncherCommandWithWineD3DRendererForcesBuiltinD3D9() {
-        var settings = VersionSettings()
-        settings.renderer = .wined3d
-        let command = LaunchService.makeLauncherShellCommand(
-            exePath: "/Data/prefix/drive_c/Program Files/Launcher/Launcher.exe",
-            wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
-            winePrefixPath: prefixPath,
-            settings: settings
-        )
-
-        XCTAssertTrue(command.contains("WINEDLLOVERRIDES=\"d3d9=b;mscoree=b;mshtml=d\""))
-    }
-
-    func testNilLoaderOmitsRosettaX87Path() {
+    func testNilLoaderOmitsSidecarPath() {
         let command = LaunchService.makeShellCommand(
             gamePath: "/Games/WoW Classic",
             executablePath: "/Games/WoW Classic/Installer.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: nil,
+            x87LoaderPath: nil,
             winePrefixPath: prefixPath,
             settings: VersionSettings()
         )
 
-        XCTAssertFalse(command.contains("ROSETTA_X87_PATH"))
+        XCTAssertFalse(command.contains("X87_SIDECAR_PATH"))
         XCTAssertTrue(command.hasPrefix("cd \"/Games/WoW Classic\" && WINEDLLOVERRIDES=\"d3d9=n,b;mscoree=d;mshtml=d\" "))
     }
 
@@ -160,12 +109,12 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings(environmentVariables: "A=1\nB=2")
         )
 
-        XCTAssertTrue(command.contains("ROSETTA_X87_PATH=\"\(loaderPath)\" A=\"1\" B=\"2\" WINEDLLOVERRIDES="))
+        XCTAssertTrue(command.contains("X87_SIDECAR_PATH=\"\(loaderPath)\" A=\"1\" B=\"2\" WINEDLLOVERRIDES="))
     }
 
     func testShellMetacharactersInPathsAreEmittedLiterally() {
@@ -174,7 +123,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: sneakyPath,
             executablePath: sneakyPath + "/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings()
         )
@@ -192,7 +141,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings(environmentVariables: "MY_DIR=/tmp/$(whoami) FLAG")
         )
@@ -205,7 +154,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings(enableMetalHud: true)
         )
@@ -219,7 +168,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/Launcher",
             executablePath: "/Games/Launcher/Launcher.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings(),
             extraArguments: ["--disable-gpu", "--in-process-gpu"]
@@ -232,7 +181,7 @@ final class LaunchCommandTests: XCTestCase {
         let command = LaunchService.makeLauncherShellCommand(
             exePath: "/Data/prefix/drive_c/Program Files/Launcher/Launcher.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings()
         )
@@ -255,7 +204,7 @@ final class LaunchCommandTests: XCTestCase {
         let command = LaunchService.makeLauncherShellCommand(
             exePath: "/Data/prefix/drive_c/Program Files/Ascension Launcher/Ascension Launcher.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings()
         )
@@ -269,7 +218,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: hostilePrefix,
             settings: VersionSettings()
         )
@@ -282,7 +231,7 @@ final class LaunchCommandTests: XCTestCase {
             gamePath: "/Games/WoW",
             executablePath: "/Games/WoW/WoW.exe",
             wineBinaryPath: winePath,
-            rosettaLoaderPath: loaderPath,
+            x87LoaderPath: loaderPath,
             winePrefixPath: prefixPath,
             settings: VersionSettings(environmentVariables: "WINEPREFIX=/tmp/user-prefix")
         )

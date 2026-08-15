@@ -38,5 +38,7 @@
 	<integer>1</integer>
 	<key>WSBundledD9MTVersion</key>
 	<integer>3</integer>
+	<key>WSBundledMTLD3DVersion</key>
+	<integer>1</integer>
 </dict>
 </plist>

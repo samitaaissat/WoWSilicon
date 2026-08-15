@@ -34,15 +34,12 @@ enum PatchingStatusChecker {
         }
 
         if version.usesRosettaPatching {
+            // Every renderer stages a native d3d9.dll (mtld3d's native-override
+            // route and the d9vk/d9mt translation DLLs alike).
             var requiredFiles = [
-                gamePath.appendingPathComponent("mods/winerosetta.dll")
+                gamePath.appendingPathComponent("mods/winerosetta.dll"),
+                gamePath.appendingPathComponent("d3d9.dll")
             ]
-
-            // wined3d is wine's builtin d3d9: staging removes the native DLL, so a
-            // present d3d9.dll means the folder was staged for another renderer.
-            if version.settings.renderer != .wined3d {
-                requiredFiles.append(gamePath.appendingPathComponent("d3d9.dll"))
-            }
 
             if version.supportsDLLLoading {
                 requiredFiles.append(gamePath.appendingPathComponent("libDllLdr.dll"))
@@ -58,15 +55,6 @@ enum PatchingStatusChecker {
                     applied: false,
                     text: "Missing \(missingPath.lastPathComponent)",
                     level: .error,
-                    actionable: true
-                )
-            }
-
-            if version.settings.renderer == .wined3d && fileExists(at: gamePath.appendingPathComponent("d3d9.dll")) {
-                return PatchStatusDescriptor(
-                    applied: false,
-                    text: "Leftover d3d9.dll",
-                    level: .warning,
                     actionable: true
                 )
             }
@@ -100,22 +88,12 @@ enum PatchingStatusChecker {
         if version.usesDivxDecoderPatch {
             let divxPath = gamePath.appendingPathComponent("DivxDecoder.dll")
             let d3d9Path = gamePath.appendingPathComponent("d3d9.dll")
-            let d3d9Staged = version.settings.renderer != .wined3d
-            if !fileExists(at: divxPath) || (d3d9Staged && !fileExists(at: d3d9Path)) {
+            if !fileExists(at: divxPath) || !fileExists(at: d3d9Path) {
                 let missingName = !fileExists(at: divxPath) ? "DivxDecoder.dll" : "d3d9.dll"
                 return PatchStatusDescriptor(
                     applied: false,
                     text: "Missing \(missingName)",
                     level: .error,
-                    actionable: true
-                )
-            }
-
-            if !d3d9Staged && fileExists(at: d3d9Path) {
-                return PatchStatusDescriptor(
-                    applied: false,
-                    text: "Leftover d3d9.dll",
-                    level: .warning,
                     actionable: true
                 )
             }
@@ -193,19 +171,24 @@ enum PatchingStatusChecker {
             )
         ]
 
-        // wined3d stages no d3d9.dll, so there is no payload to be outdated
-        // against (the "Leftover d3d9.dll" tier already flags a present file).
-        if version.settings.renderer != .wined3d {
-            expectations.append(
-                ResourceExpectation(
-                    relativePath: "d3d9.dll",
-                    resourceName: "d3d9",
-                    resourceExtension: "dll",
-                    resourceSubdirectory: version.settings.renderer == .d9mt ? "Patching/d9mt" : "Patching/d9vk",
-                    displayName: "d3d9.dll"
-                )
-            )
+        // Freshness is renderer-aware: each backend's staged d3d9.dll is
+        // compared against its own payload. mtld3d.conf is deliberately NOT
+        // checked — it is user-editable configuration, not a payload.
+        let d3d9Subdirectory: String
+        switch version.settings.renderer {
+        case .mtld3d: d3d9Subdirectory = "Patching/mtld3d/native/i386-windows"
+        case .d9mt: d3d9Subdirectory = "Patching/d9mt"
+        case .d9vk: d3d9Subdirectory = "Patching/d9vk"
         }
+        expectations.append(
+            ResourceExpectation(
+                relativePath: "d3d9.dll",
+                resourceName: "d3d9",
+                resourceExtension: "dll",
+                resourceSubdirectory: d3d9Subdirectory,
+                displayName: "d3d9.dll"
+            )
+        )
 
         if version.usesRosettaPatching && version.supportsDLLLoading {
             expectations.append(
