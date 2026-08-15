@@ -4,9 +4,9 @@ import XCTest
 /// Covers `PatchService.resourceURL`'s d9mt override lookup — the seam
 /// `RuntimeUpdateService` uses to make a downloaded d9mt payload take
 /// precedence over the one bundled with the app. Every test passes
-/// `overrideDirectory:` explicitly rather than touching the
-/// `PatchService.d9mtOverrideDirectory` static var, so nothing here can leak
-/// state into other tests in the same process.
+/// `overrideDirectory:` explicitly rather than relying on its default
+/// (`RuntimeUpdatePaths.d9mtCacheDirectory()`), so nothing here depends on
+/// the portable storage location and nothing can leak state between tests.
 final class PatchServiceD9MTOverrideTests: XCTestCase {
     private var tempURLs: [URL] = []
 
