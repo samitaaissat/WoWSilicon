@@ -1,0 +1,141 @@
+{
+    "version": "0.1.0",
+    "id": "eca0c334-604a-4fa5-a389-e678d137d2f8",
+    "timestamp": "2026-08-15T13:17:47.913409Z",
+    "vcs": {
+        "type": "git",
+        "revision": "b42e4148b7d47680fef8d60d195c0dfe15a2b546",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": ".github/workflows/runtime.yml",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:9cd148d24b80cc5492065cf370556129b037099b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 79,
+                            "end_line": 80
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:196924fdae8fa78000026bdff5dc001bc171a382",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 60,
+                            "end_line": 60
+                        },
+                        {
+                            "start_line": 63,
+                            "end_line": 63
+                        }
+                    ]
+                },
+                {
+                    "url": "git+CLAUDE_CODE:blob:9cd148d24b80cc5492065cf370556129b037099b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 67,
+                            "end_line": 78
+                        },
+                        {
+                            "start_line": 106,
+                            "end_line": 106
+                        },
+                        {
+                            "start_line": 108,
+                            "end_line": 109
+                        },
+                        {
+                            "start_line": 112,
+                            "end_line": 113
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/mtld3d/build-payload.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:9cd148d24b80cc5492065cf370556129b037099b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 6
+                        },
+                        {
+                            "start_line": 8,
+                            "end_line": 16
+                        },
+                        {
+                            "start_line": 18,
+                            "end_line": 37
+                        },
+                        {
+                            "start_line": 39,
+                            "end_line": 45
+                        },
+                        {
+                            "start_line": 47,
+                            "end_line": 58
+                        },
+                        {
+                            "start_line": 60,
+                            "end_line": 67
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/runtime/build-wine-runtime.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:9cd148d24b80cc5492065cf370556129b037099b",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 4,
+                            "end_line": 4
+                        },
+                        {
+                            "start_line": 34,
+                            "end_line": 36
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
