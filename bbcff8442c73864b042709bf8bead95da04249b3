@@ -1,0 +1,52 @@
+{
+    "version": "0.1.0",
+    "id": "8e3e1d82-9b89-4cd6-9960-2d7035d5879f",
+    "timestamp": "2026-08-15T12:36:14.705311Z",
+    "vcs": {
+        "type": "git",
+        "revision": "bbcff8442c73864b042709bf8bead95da04249b3",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PatchService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:f01b7b1865715f294973b36426cf7c4e3b87f752",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 405,
+                            "end_line": 405
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/PatchServiceD9MTOverrideTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:f01b7b1865715f294973b36426cf7c4e3b87f752",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 7,
+                            "end_line": 9
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
