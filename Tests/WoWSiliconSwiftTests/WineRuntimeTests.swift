@@ -89,14 +89,76 @@ final class WineRuntimeTests: XCTestCase {
 
     func testGameAppURLPrefersOverrideWhenItsWineBinaryIsExecutable() throws {
         let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
-        let overrideRoot = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
-        try makeFile(at: overrideRoot.appendingPathComponent("Contents/MacOS/wine"), posixPermissions: 0o755)
+        let overrideRoot = try makeCompleteOverride()
 
         runtime.setOverrideGameAppURL(overrideRoot)
 
         XCTAssertEqual(runtime.gameAppURL, overrideRoot)
         XCTAssertTrue(runtime.isUsingDownloadedRuntime)
         XCTAssertEqual(runtime.wineBinaryURL.path, overrideRoot.appendingPathComponent("Contents/MacOS/wine").path)
+    }
+
+    /// Regression pin for the "Library mtld3d.dll not found" failure: an
+    /// override bundle assembled by an OLDER app build carries a perfectly
+    /// good wine binary but none of the mtld3d builtins this build's default
+    /// renderer imports. Trusting it makes every launch fail in the game's
+    /// loader (`import_dll ... mtld3d.dll not found`) until RuntimeUpdateService
+    /// next reconciles — up to 24h later, because its check is debounced.
+    /// The runtime must reject such an override immediately.
+    func testGameAppURLFallsBackToBundledWhenOverrideLacksMTLD3DBuiltins() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeCompleteOverride()
+        try FileManager.default.removeItem(
+            at: overrideRoot.appendingPathComponent("Contents/lib/wine/i386-windows/mtld3d.dll"))
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
+    /// The PE half is useless without its unix half — wine pairs them by name.
+    func testGameAppURLFallsBackToBundledWhenOverrideLacksMTLD3DUnixLibrary() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeCompleteOverride()
+        try FileManager.default.removeItem(
+            at: overrideRoot.appendingPathComponent("Contents/lib/wine/x86_64-unix/mtld3d.so"))
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
+    /// An override from before the x87sidecar switch has no sidecar binary, so
+    /// the shim's exec would fail for every i386 image.
+    func testGameAppURLFallsBackToBundledWhenOverrideLacksX87Sidecar() throws {
+        let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
+        let overrideRoot = try makeCompleteOverride()
+        try FileManager.default.removeItem(
+            at: overrideRoot.appendingPathComponent("Contents/MacOS/x87sidecar"))
+
+        runtime.setOverrideGameAppURL(overrideRoot)
+
+        XCTAssertEqual(runtime.gameAppURL, runtime.bundledGameAppURL)
+        XCTAssertFalse(runtime.isUsingDownloadedRuntime)
+    }
+
+    /// A structurally complete override runtime: an executable wine, the
+    /// x87sidecar the shim execs, and the mtld3d builtin trio the default
+    /// renderer needs.
+    private func makeCompleteOverride() throws -> URL {
+        let root = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
+        try makeFile(at: root.appendingPathComponent("Contents/MacOS/wine"), posixPermissions: 0o755)
+        try makeFile(at: root.appendingPathComponent("Contents/MacOS/x87sidecar"), posixPermissions: 0o755)
+        for relative in [
+            "Contents/lib/wine/i386-windows/mtld3d.dll",
+            "Contents/lib/wine/x86_64-windows/mtld3d.dll",
+            "Contents/lib/wine/x86_64-unix/mtld3d.so",
+        ] {
+            try makeFile(at: root.appendingPathComponent(relative), posixPermissions: 0o644)
+        }
+        return root
     }
 
     func testGameAppURLFallsBackToBundledWhenOverrideWineBinaryIsMissing() throws {
@@ -123,8 +185,7 @@ final class WineRuntimeTests: XCTestCase {
 
     func testSetOverrideGameAppURLBackToNilRestoresBundledPath() throws {
         let runtime = WineRuntime(bundleURL: try makeTemporaryDirectory())
-        let overrideRoot = try makeTemporaryDirectory().appendingPathComponent("Override Game.app", isDirectory: true)
-        try makeFile(at: overrideRoot.appendingPathComponent("Contents/MacOS/wine"), posixPermissions: 0o755)
+        let overrideRoot = try makeCompleteOverride()
 
         runtime.setOverrideGameAppURL(overrideRoot)
         XCTAssertTrue(runtime.isUsingDownloadedRuntime)

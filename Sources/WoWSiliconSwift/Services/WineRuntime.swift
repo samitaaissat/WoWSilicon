@@ -149,14 +149,42 @@ final class WineRuntime: @unchecked Sendable {
         return url
     }
 
+    /// Everything an override runtime must contain, beyond an executable wine,
+    /// before this build will run the game out of it. All of these are staged
+    /// by the Makefile `bundle` target, so the bundled runtime always passes.
+    ///
+    /// An override assembled by an OLDER app build is the dangerous case: its
+    /// wine binary is perfectly good, so a bare executability check accepts it,
+    /// but it predates these payloads. Running from it fails deep in the game's
+    /// loader instead — `err:module:import_dll Library mtld3d.dll ... not found`
+    /// — and `RuntimeUpdateService` only reconciles the override on its own
+    /// debounced schedule, so the breakage can persist for up to 24 hours.
+    /// Checking the payloads here makes the fallback immediate.
+    private static let requiredOverrideComponents = [
+        // The shim execs the sidecar for every i386 image (runtime patch 0002).
+        "MacOS/x87sidecar",
+        // The mtld3d builtin trio the default renderer's native d3d9.dll imports.
+        "lib/wine/i386-windows/mtld3d.dll",
+        "lib/wine/x86_64-windows/mtld3d.dll",
+        "lib/wine/x86_64-unix/mtld3d.so",
+    ]
+
     /// A runtime root is trusted only when its wine binary is present and
     /// executable — the same bar `validatedWineBinaryURL()` holds the bundled
-    /// runtime to.
-    private func isValidRuntimeRoot(_ gameAppURL: URL) -> Bool {
-        let wineURL = gameAppURL
-            .appendingPathComponent("Contents", isDirectory: true)
+    /// runtime to — and it carries every payload this build depends on.
+    ///
+    /// The single authority for the question: `RuntimeUpdateService` calls it to
+    /// decide whether an assembled override still needs rebuilding, and
+    /// `gameAppURL` calls it to decide whether to run from one.
+    func isValidRuntimeRoot(_ gameAppURL: URL) -> Bool {
+        let contentsURL = gameAppURL.appendingPathComponent("Contents", isDirectory: true)
+        let wineURL = contentsURL
             .appendingPathComponent("MacOS", isDirectory: true)
             .appendingPathComponent("wine", isDirectory: false)
-        return fileManager.isExecutableFile(atPath: wineURL.path)
+        guard fileManager.isExecutableFile(atPath: wineURL.path) else { return false }
+
+        return Self.requiredOverrideComponents.allSatisfy { relative in
+            fileManager.fileExists(atPath: contentsURL.appendingPathComponent(relative).path)
+        }
     }
 }

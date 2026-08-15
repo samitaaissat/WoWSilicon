@@ -158,6 +158,39 @@ final class PatchServiceGamePatchTests: XCTestCase {
             named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows")!)
         XCTAssertEqual(staged, bundled)
         XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("mtld3d.conf").path))
+
+        // The builtin-name marker must sit beside d3d9.dll too: wine searches the
+        // exe's own directory before the prefix system dirs, so this keeps the
+        // import resolvable even when a wineboot prefix refresh drops the
+        // system32/syswow64 copies.
+        let stagedMarker = try Data(contentsOf: gameURL.appendingPathComponent("mtld3d.dll"))
+        let bundledMarker = try Data(contentsOf: PatchService.resourceURL(
+            named: "mtld3d.fake", extension: "dll", subdirectory: "Patching/mtld3d/wine/i386-windows")!)
+        XCTAssertEqual(stagedMarker, bundledMarker, "<game>/mtld3d.dll must be the i386 fake-dll marker")
+    }
+
+    /// Switching away from mtld3d must not leave the marker behind: a stray
+    /// mtld3d.dll next to a d9vk/d9mt d3d9.dll is a dangling builtin name.
+    func testStageGamePatchFilesRemovesMTLD3DMarkerWhenSwitchingAway() throws {
+        try XCTSkipIf(
+            PatchService.resourceURL(named: "winerosetta", extension: "dll", subdirectory: "Patching/winerosetta") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/d9vk") == nil
+                || PatchService.resourceURL(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows") == nil,
+            "Bundled patch resources not resolvable under swift test (run make fetch-mtld3d)"
+        )
+
+        let gameURL = try makeTemporaryDirectory()
+        try Data([0x4d, 0x5a]).write(to: gameURL.appendingPathComponent("DivxDecoder.dll"))
+
+        var version = makeVersion(gameURL: gameURL)
+        version.settings.renderer = .mtld3d
+        try PatchService.stageGamePatchFiles(for: version)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("mtld3d.dll").path))
+
+        version.settings.renderer = .d9vk
+        try PatchService.stageGamePatchFiles(for: version)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: gameURL.appendingPathComponent("mtld3d.dll").path))
     }
 
     /// mtld3d.conf is user-editable runtime configuration: re-staging must never

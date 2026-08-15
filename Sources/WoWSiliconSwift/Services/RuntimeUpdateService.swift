@@ -161,6 +161,20 @@ final class RuntimeUpdateService: @unchecked Sendable {
     func checkForUpdatesIfNeeded(force: Bool = false) async throws {
         var state = RuntimeUpdateState.load(fileManager: fileManager, storage: storage)
         if !force, let lastCheckedAt = state.lastCheckedAt, Date().timeIntervalSince(lastCheckedAt) < Self.checkInterval {
+            // Debounce the NETWORK check only. The override must still be
+            // reconciled against this build every launch: an override assembled
+            // by a previous app version can lack payloads this one needs (the
+            // mtld3d builtins, the x87sidecar), and leaving it in place until
+            // the next un-debounced check would break launches for up to 24h.
+            // WineRuntime independently refuses such an override, so this is the
+            // slower half of a belt-and-braces pair: it deletes or rebuilds the
+            // stale copy instead of merely ignoring it.
+            do {
+                try rebuildOverrideIfNeeded(state: &state)
+                state.save(fileManager: fileManager, storage: storage)
+            } catch {
+                debugPrint("RuntimeUpdateService: override reconcile failed: \(error)")
+            }
             return
         }
 
@@ -445,9 +459,17 @@ final class RuntimeUpdateService: @unchecked Sendable {
             return
         }
 
+        // Version bookkeeping alone is not enough to call the override current:
+        // one assembled by a previous app build can carry the same version
+        // numbers yet lack payloads this build needs (it never knew to stage
+        // them). Re-assemble whenever what is actually on disk fails the
+        // runtime's own usability bar.
+        let overrideIsUsable = fileManager.fileExists(atPath: overrideURL.path)
+            && runtime.isValidRuntimeRoot(overrideURL)
         guard state.overrideWineVersion != effectiveWineVersion
             || state.overrideD9MTVersion != effectiveD9MTVersion
-            || state.overrideMTLD3DVersion != effectiveMTLD3DVersion else {
+            || state.overrideMTLD3DVersion != effectiveMTLD3DVersion
+            || !overrideIsUsable else {
             return
         }
 

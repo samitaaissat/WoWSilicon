@@ -83,13 +83,22 @@ enum PatchService {
             // Native-override route (upstream INSTALL.md): the unmarked native PE
             // goes beside the game exe and is selected by the d3d9=n,b override.
             // The mtld3d.dll/mtld3d.so builtin pair it bridges through ships in
-            // the runtime's lib/wine tree (Makefile bundle target), and the
-            // prefix markers are staged by installMTLD3DPrefixSupport.
+            // the runtime's lib/wine tree (Makefile bundle target).
             try copyResource(named: "d3d9", extension: "dll", subdirectory: "Patching/mtld3d/native/i386-windows", to: gameURL.appendingPathComponent("d3d9.dll"))
+            // The builtin-name marker, beside d3d9.dll as well as in the prefix
+            // (installMTLD3DPrefixSupport). Wine searches the exe's own directory
+            // before the prefix system dirs, so this copy keeps the d3d9 → mtld3d
+            // import resolvable even if a wineboot prefix update drops the
+            // system32/syswow64 markers. Both are cheap; neither alone is
+            // sufficient if the runtime's lib/wine lacks the real builtin.
+            try copyResource(named: "mtld3d.fake", extension: "dll", subdirectory: "Patching/mtld3d/wine/i386-windows", to: gameURL.appendingPathComponent("mtld3d.dll"))
             stageMTLD3DConfigIfAbsent(in: gameURL)
         case .d9vk, .d9mt:
             let d3d9Subdirectory = version.settings.renderer == .d9mt ? "Patching/d9mt" : "Patching/d9vk"
             try copyResource(named: "d3d9", extension: "dll", subdirectory: d3d9Subdirectory, to: gameURL.appendingPathComponent("d3d9.dll"))
+            // A leftover marker would leave a dangling builtin name beside a
+            // d3d9.dll that does not import it.
+            try removeIfExists(gameURL.appendingPathComponent("mtld3d.dll"))
         }
 
         // Remove legacy exe-patching artifacts
@@ -301,6 +310,7 @@ enum PatchService {
         try removeIfExists(gameURL.appendingPathComponent("libDllLdr.dll"))
         try removeIfExists(gameURL.appendingPathComponent("Wow_patched.exe"))
         try removeIfExists(gameURL.appendingPathComponent("d3d9.dll"))
+        try removeIfExists(gameURL.appendingPathComponent("mtld3d.dll"))
         try removeIfExists(gameURL.appendingPathComponent("mtld3d.conf"))
         try removeIfExists(gameURL.appendingPathComponent("vanilla-tweaks.exe"))
         // Obsolete v2 payload — rosettax87 ships inside the app bundle since v3.
