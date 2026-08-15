@@ -100,12 +100,20 @@ The app pins the runtime it bundles in the `Makefile`:
 when cached with a matching checksum), verifies `RUNTIME_SHA256`, and extracts
 it; `make bundle` then stages the runtime as the nested
 `WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app` — wine's `bin/`
-becomes `Contents/MacOS` (plus the rosettax87 loader pair), `lib/` and `share/`
-sit beside it, and a generated Info.plist declares the games category and Game
-Mode keys — before codesigning. That geometry is what lets macOS Game Mode
-recognise the game process; keep executables directly in `Contents/MacOS`. To
-move the app to a new runtime, update all three pins in the same commit and
-rebuild.
+becomes `Contents/MacOS` (including the `x87sidecar` binary the runtime
+tarball ships), `lib/` and `share/` sit beside it, and a generated Info.plist
+declares the games category and Game Mode keys — before codesigning. That
+geometry is what lets macOS Game Mode recognise the game process; keep
+executables directly in `Contents/MacOS`. To move the app to a new runtime,
+update all three pins in the same commit and rebuild.
+
+Since runtime-v4 the runtime carries the x87sidecar cooperative-attach patch
+(`tools/runtime/patches/0002-…`) and bundles the pinned
+[athei/x87sidecar](https://github.com/athei/x87sidecar) binary in `bin/` —
+wine and the sidecar share a Mach wire protocol (`coop_proto.h`), so they
+version as one artifact. The legacy `ROSETTA_X87_PATH`/rosettax87 exec path
+is preserved in the patch so older deployed apps that auto-adopt a newer
+runtime keep launching unchanged.
 
 ### d9mt Payload
 
@@ -136,14 +144,35 @@ it); `make bundle` then stages the `winemetal`/`d9mtmetal` files as Wine
 builtins into the nested game app's `lib/wine` arch dirs. Bump all three
 `D9MT_*` pins together in one commit, like the runtime pins.
 
+### mtld3d Payload
+
+The mtld3d renderer payload (`mtld3d-<n>.tar.gz`) is a repackaging of the
+pinned upstream [athei/mtld3d](https://github.com/athei/mtld3d) release
+bundle, produced by `tools/mtld3d/build-payload.sh` (which verifies the
+upstream sha and re-roots the bundle under a leading `mtld3d/` component) and
+uploaded as an extra asset on the `runtime-v<n>` release page like d9mt. To
+adopt a new upstream release: bump `MTLD3D_TAG`/`MTLD3D_SHA256` in
+`build-payload.sh`, run it with the next `PAYLOAD_VERSION`, upload
+`dist/mtld3d-<n>.tar.gz` + `.sha256`, then bump the Makefile pins.
+
+The app pins it in the `Makefile` alongside the runtime pins
+(`MTLD3D_VERSION` / `MTLD3D_SHA256` / `MTLD3D_URL`, bumped together).
+`make fetch-mtld3d` downloads and verifies the tarball, extracting it into
+`Sources/WoWSiliconSwift/Resources/Patching/mtld3d` (gitignored); from there
+`PatchService` stages the native-override `d3d9.dll` + `mtld3d.conf` into the
+game folder and the `mtld3d.fake.dll` prefix markers, while `make bundle`
+stages the `mtld3d.dll`/`mtld3d.so` builtin pair into the nested game app's
+`lib/wine` arch dirs.
+
 ### Runtime Self-Updates
 
 Independently of app releases, `RuntimeUpdateService` polls
 `samitaaissat/WoWSilicon`'s releases at app startup (debounced to once per 24h;
 "Check for Runtime Updates" in Troubleshooting forces an immediate check) for a
-wine tarball or d9mt payload newer than what the running app was built with
-(`WSBundledRuntimeVersion`/`WSBundledD9MTVersion` in `Packaging/Info.plist`,
-kept in sync with `RUNTIME_VERSION`/`D9MT_VERSION` by the `bundle` target).
+wine tarball, d9mt payload, or mtld3d payload newer than what the running app
+was built with (`WSBundledRuntimeVersion`/`WSBundledD9MTVersion`/
+`WSBundledMTLD3DVersion` in `Packaging/Info.plist`, kept in sync with
+`RUNTIME_VERSION`/`D9MT_VERSION`/`MTLD3D_VERSION` by the `bundle` target).
 Anything newer is downloaded, checksum-verified against its `.sha256` sidecar
 asset, and assembled into an override copy of the nested game bundle under the
 portable Data folder (`WoWSilicon Data/RuntimeUpdate/`) — the app never writes

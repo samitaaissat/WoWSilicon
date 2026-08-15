@@ -24,7 +24,7 @@
 
 WoWSilicon is a macOS launcher for older World of Warcraft clients on Apple Silicon Macs.
 
-It bundles a pre-patched Wine runtime, RosettaX87, DX9 translation, and runtime patching so clients from the 2006-2010 era can run more efficiently on modern macOS hardware.
+It bundles a pre-patched Wine runtime, the x87sidecar floating-point JIT, Metal-native DX9 translation (mtld3d), and runtime patching so clients from the 2006-2010 era can run more efficiently on modern macOS hardware.
 
 <p align="center">
   <img src="docs/assets/launcher-preview.png" alt="WoWSilicon launcher preview" width="760">
@@ -56,7 +56,7 @@ It bundles a pre-patched Wine runtime, RosettaX87, DX9 translation, and runtime 
 - A legally acquired local World of Warcraft client folder
 - Permission to modify the selected game folder
 
-On first launch, macOS shows a one-time prompt asking to allow WoWSilicon to attach to other processes for debugging. The bundled RosettaX87 loader needs this authorization to run the 32-bit client; approve it once and macOS will not ask again.
+No debugger authorization is needed: the bundled x87sidecar attaches to the 32-bit client cooperatively (the game process hands over its ports voluntarily), so macOS shows no attach-for-debugging prompt.
 
 ## Installation
 
@@ -94,16 +94,21 @@ to `WoWSilicon.app` — your settings and its own private Wine environment.
 WoWSilicon.app ships the following third-party components:
 
 - **Wine** (LGPL-2.1-or-later) — the bundled, pre-patched runtime is built from
-  [WineAndAqua/wine](https://github.com/WineAndAqua/wine) (branch `wine-11.14-macos`)
+  [WineAndAqua/wine](https://github.com/WineAndAqua/wine) (branch `wine-11.15-macos`)
   at the commit pinned in [`tools/runtime/build-wine-runtime.sh`](tools/runtime/build-wine-runtime.sh).
   The app bundles the `runtime-v*` release selected by `RUNTIME_VERSION` in the
   [`Makefile`](Makefile); Wine's LICENSE files ship inside
   `WoWSilicon.app/Contents/SharedSupport/WoWSilicon Game.app/Contents/share/licenses/`.
-- **rosettax87_jit** (MIT) — the RosettaX87 loader, by
-  [Lifeisawful](https://github.com/Lifeisawful/rosettax87_jit).
+- **mtld3d** (Zlib) — the Metal-native Direct3D 9 implementation and default
+  renderer, by [athei](https://github.com/athei/mtld3d).
+- **x87sidecar** (MIT) — the out-of-process x87 JIT for Rosetta 2, by
+  [athei](https://github.com/athei/x87sidecar) (a fork of
+  [Lifeisawful's rosettax87_jit](https://github.com/Lifeisawful/rosettax87_jit)).
+  Bundled inside the runtime tarball; wine attaches to it cooperatively.
 - **winerosetta** — game-folder DLL payload, from the
   [Gcenx mirror](https://github.com/Gcenx/winerosetta).
-- **DXVK / d9vk** (zlib) — the native `d3d9.dll` DirectX 9 translation layer.
+- **DXVK / d9vk** (zlib) — the `d3d9.dll` DirectX 9→Vulkan translation layer
+  behind the legacy d9vk renderer.
 - **vanilla-tweaks** (MIT) — client tweaking tool used by the vanilla-tweaks patch step.
 
 ## Development
