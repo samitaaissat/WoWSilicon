@@ -19,11 +19,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>3.2.0</string>
+	<string>3.0.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>30200</string>
+	<string>30000</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.games</string>
 	<key>LSMinimumSystemVersion</key>
@@ -34,11 +34,11 @@
 	<string>https://wowsilicon.github.io/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>KAU42Mn11WBoZMPfk8Elr1jdmUba6oEBaTaPVykn/zk=</string>
-	<key>WSBundledRuntimeVersion</key>
-	<integer>1</integer>
 	<key>WSBundledD9MTVersion</key>
 	<integer>3</integer>
 	<key>WSBundledMTLD3DVersion</key>
+	<integer>1</integer>
+	<key>WSBundledRuntimeVersion</key>
 	<integer>1</integer>
 </dict>
 </plist>
