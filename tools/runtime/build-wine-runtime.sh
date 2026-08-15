@@ -177,6 +177,22 @@ rm -rf "$STAGING_DIR/wine/include" \
 mkdir -p "$STAGING_DIR/wine/share/licenses"
 cp "$SRC_DIR/LICENSE" "$SRC_DIR/COPYING.LIB" "$STAGING_DIR/wine/share/licenses/"
 
+# --- Bundle x87sidecar -------------------------------------------------------
+# The cooperative x87 JIT that replaces the rosettax87 injected dylib. Patch
+# 0002 gives this wine the tracee half of its Mach handshake, and the app's
+# wine-rosetta-shim execs this binary for i386 images (X87_SIDECAR_PATH). It
+# ships inside the runtime tarball — not the app — because the handshake wire
+# protocol (coop_proto.h) couples wine and the sidecar into one artifact.
+# bin/ lands in the nested game bundle's Contents/MacOS, exactly where the
+# shim expects to find the binary beside itself.
+X87SIDECAR_VERSION="v1.5.0"
+X87SIDECAR_URL="https://github.com/athei/x87sidecar/releases/download/${X87SIDECAR_VERSION}/x87sidecar.tar.xz"
+X87SIDECAR_SHA256="8adb16590ecd5dd80e6a9d335861030937908d73dc4ecdfec76fa001e5ec9a2d"
+curl -fL --retry 3 -o "$WORK_DIR/x87sidecar.tar.xz" "$X87SIDECAR_URL"
+echo "$X87SIDECAR_SHA256  $WORK_DIR/x87sidecar.tar.xz" | shasum -a 256 -c -
+tar -xJf "$WORK_DIR/x87sidecar.tar.xz" -C "$STAGING_DIR/wine/bin"
+chmod +x "$STAGING_DIR/wine/bin/x87sidecar"
+
 printf 'wowsilicon-wine %s (WineAndAqua/wine@%s %s)\n' \
   "$RUNTIME_BUILD_NUMBER" "$WINE_COMMIT" "$WINE_BRANCH" > "$STAGING_DIR/wine/VERSION"
 
@@ -227,6 +243,13 @@ done
 # Bundled dylibs must not reference the build host's brew prefix (hard gate).
 if otool -L "$STAGING_DIR/wine/lib/"*.dylib | grep -E $'\t/(usr/local|opt/homebrew)/'; then
   echo "error: bundled dylib still references the build host's Homebrew prefix" >&2
+  exit 1
+fi
+
+# x87sidecar must be present, executable, and native arm64 (hard gate): the
+# shim execs it unconditionally for i386 images once X87_SIDECAR_PATH is set.
+if ! file -b "$STAGING_DIR/wine/bin/x87sidecar" | grep -q 'arm64'; then
+  echo "error: bin/x87sidecar missing or not an arm64 Mach-O." >&2
   exit 1
 fi
 
