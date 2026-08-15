@@ -30,7 +30,12 @@ enum PatchService {
     /// cache directory to check for a downloaded d9mt payload newer than the
     /// one bundled with the app; nil (the default, and the only mode the test
     /// suite exercises) means "only use the bundled Patching/d9mt resources".
-    static var d9mtOverrideDirectory: URL?
+    ///
+    /// `nonisolated(unsafe)`: written exactly once, from the app's startup path
+    /// (`WoWSiliconSwiftApp`), before any patching can run; every other access
+    /// is a read. Swift 6 cannot see that invariant, and without the annotation
+    /// the whole test target fails to compile.
+    nonisolated(unsafe) static var d9mtOverrideDirectory: URL?
 
     static func applyGamePatch(for version: GameVersion) throws {
         let gameURL = try stageGamePatchFiles(for: version)
