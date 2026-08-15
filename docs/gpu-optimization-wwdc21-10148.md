@@ -22,11 +22,43 @@ its frame graph. Those are marked N/A below with the reason.
 |---|-----|--------|
 | 1 | Have a methodology: measure → target → analyse → improve → verify | **Already in place**, and used for these changes |
 | 2 | Split over-general shaders into permutations; cut register pressure | **N/A** — shaders come from the game as DXBC |
-| 3 | Don't disable lossless compression with needless usage flags | **Fixed** — was disabled on every colour texture |
+| 3 | Don't disable lossless compression with needless usage flags | **Reverted (payload v6)** — shipped in v5, caused a live regression, see below |
 | 4 | Reorder the frame graph for vertex/fragment/compute overlap | **N/A** — the game owns pass order |
 | 5 | On unified memory, skip the blit to private; ring shared buffers | **Already correct** |
 | 6 | Check your shader compiler settings — enable fast math | **Already correct** |
 | 7 | Cache bindings; don't re-bind what has not changed | **Partly in place; two gaps closed** |
+
+## Payload v6: tip 3 reverted after a live regression
+
+Payload v5 shipped the pixelFormatView narrowing described in tip 3 below.
+A user reported a previously-fixed bug back: a projected ground-decal
+(target ring on NPCs) clipping/z-fighting into terrain, confirmed on the
+actual shipped v5 payload (sha256-verified), confirmed absent on v4.
+
+This was investigated hard before reverting, not reverted on a hunch:
+direct empirical Metal probes on real hardware (Apple M5, macOS 27) for
+every proposed mechanism — sampling a render target through an sRGB view
+(`D3DSAMP_SRGBTEXTURE`), and *rendering to* an sRGB view as the color
+attachment (`D3DRS_SRGBWRITEENABLE`), both on textures built exactly as
+v5 builds them — and an 11-agent independent hunt-and-verify workflow
+across four lenses (the two sRGB paths above, the copyImage fallback
+asymmetry, and the vertex-bind-shadow/encoderEpoch interaction). Every
+proposed mechanism was either empirically refuted (worked correctly on
+real hardware, verified down to actual pixel values, not just "no error")
+or refuted by tracing the call graph (`D3DSAMP_SRGBTEXTURE` and
+`D3DRS_SRGBWRITEENABLE` both default off and are unestablished for this
+era of client; the depth-bias/rasterizer-state emission path is
+structurally independent of everything the tip-7 changes touched).
+
+No single confirmed mechanism was found. Given a live regression in a
+shipped release asset and no confirmed root cause, payload v6 reverts the
+narrowing wholesale rather than continuing to guess — `d9mtNeedsPixelFormatView`
+now always returns `true`, restoring exactly v4's blanket-permissive
+behaviour. The tip-7 redundant-binding fixes are untouched; nothing in the
+investigation implicated them.
+
+The section below describes the reverted v5 design for the record — it is
+no longer what ships.
 
 ---
 
