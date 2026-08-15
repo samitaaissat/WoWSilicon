@@ -57,14 +57,25 @@ RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 # release with no d9mt asset. RuntimeUpdateService already scans every
 # runtime-v* release for the same reason.
 D9MT_RELEASE ?= runtime-v1
-D9MT_VERSION ?= 4
+D9MT_VERSION ?= 5
 D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
 D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/$(D9MT_RELEASE)/$(D9MT_ASSET)
-D9MT_SHA256 ?= 8d8648138e43fe7c8b6e98cee13d19dc4f2a0686f51a799071a378a1aa220838
+D9MT_SHA256 ?= 8ceff468f57cc87ad26eacf5d6775c4f9b432dc89df31a18bc3b8b9643c0d576
 D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
 D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
 
-.PHONY: all build debug run bundle fetch-runtime fetch-d9mt dmg appcast clean app_icon
+# mtld3d renderer payload (repackaged upstream athei/mtld3d release, built by
+# tools/mtld3d/build-payload.sh, uploaded to the runtime-v1 payload shelf like
+# d9mt). Bump all three pins together.
+MTLD3D_RELEASE ?= runtime-v1
+MTLD3D_VERSION ?= 1
+MTLD3D_ASSET := mtld3d-$(MTLD3D_VERSION).tar.gz
+MTLD3D_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/$(MTLD3D_RELEASE)/$(MTLD3D_ASSET)
+MTLD3D_SHA256 ?= 14213dca1e8f28e622839fd320f17b8770cc0f8612db7721e46a16d35d3b9229
+MTLD3D_CACHE := $(BUILD_DIR)/mtld3d-cache
+MTLD3D_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/mtld3d
+
+.PHONY: all build debug run bundle fetch-runtime fetch-d9mt fetch-mtld3d dmg appcast clean app_icon
 
 all: bundle
 
@@ -92,11 +103,14 @@ run: bundle
 # prerequisites run concurrently, so a warm .build can keep an older payload
 # in the resource bundle while the pins claim a newer one — the .sha256 stamp
 # (copied into the bundle beside the payload) must match D9MT_SHA256.
-bundle: fetch-runtime fetch-d9mt build
+bundle: fetch-runtime fetch-d9mt fetch-mtld3d build
 	@test -s "$(RESOURCE_BUNDLE)/Patching/d9mt/d3d9.dll" && test -s "$(RESOURCE_BUNDLE)/Patching/d9vk/d3d9.dll" \
-		|| (echo "error: $(RESOURCE_BUNDLE) is missing renderer payloads (stale build preceded fetch-d9mt?); run 'swift build' again or 'make clean'" >&2; exit 1)
+		&& test -s "$(RESOURCE_BUNDLE)/Patching/mtld3d/native/i386-windows/d3d9.dll" \
+		|| (echo "error: $(RESOURCE_BUNDLE) is missing renderer payloads (stale build preceded fetch-d9mt/fetch-mtld3d?); run 'swift build' again or 'make clean'" >&2; exit 1)
 	@test "$$(cat "$(RESOURCE_BUNDLE)/Patching/d9mt/.sha256" 2>/dev/null)" = "$(D9MT_SHA256)" \
 		|| (echo "error: $(RESOURCE_BUNDLE) has a stale d9mt payload (stamp != D9MT_SHA256; parallel make or stale .build?); run 'swift build' again or 'make clean'" >&2; exit 1)
+	@test "$$(cat "$(RESOURCE_BUNDLE)/Patching/mtld3d/.sha256" 2>/dev/null)" = "$(MTLD3D_SHA256)" \
+		|| (echo "error: $(RESOURCE_BUNDLE) has a stale mtld3d payload (stamp != MTLD3D_SHA256; parallel make or stale .build?); run 'swift build' again or 'make clean'" >&2; exit 1)
 	@$(MAKE) app_icon
 	@echo "Staging $(APP_NAME).app..."
 	@rm -rf "$(APP_BUNDLE)"
