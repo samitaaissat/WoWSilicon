@@ -1,0 +1,76 @@
+{
+    "version": "0.1.0",
+    "id": "9742d4b5-cbbc-4901-9d08-cbf6ba6017da",
+    "timestamp": "2026-08-15T13:10:30.090538Z",
+    "vcs": {
+        "type": "git",
+        "revision": "2472ef20e2ce69a7a5c434b9e7161e8050628a29",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "tools/gamemode-shim/main.c",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:725c7ac9e68a14625eba3f8c6a710f0ce52b2439",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 2,
+                            "end_line": 2
+                        },
+                        {
+                            "start_line": 8,
+                            "end_line": 11
+                        },
+                        {
+                            "start_line": 13,
+                            "end_line": 18
+                        },
+                        {
+                            "start_line": 20,
+                            "end_line": 22
+                        },
+                        {
+                            "start_line": 47,
+                            "end_line": 48
+                        },
+                        {
+                            "start_line": 52,
+                            "end_line": 57
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/runtime/build-wine-runtime.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:725c7ac9e68a14625eba3f8c6a710f0ce52b2439",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 180,
+                            "end_line": 194
+                        },
+                        {
+                            "start_line": 249,
+                            "end_line": 254
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
