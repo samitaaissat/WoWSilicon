@@ -1193,7 +1193,11 @@ final class MainDashboardViewModel: ObservableObject {
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
+                // Both renderer config files carry the value so the setting
+                // survives renderer switches: dxvk.conf drives d9vk,
+                // mtld3d.conf's cursor.scale drives mtld3d (d9mt has no knob).
                 try DXVKConfigService.setCursorSizeMultiplier(gamePath: trimmedPath, multiplier: multiplier)
+                try MTLD3DConfigService.setCursorSizeMultiplier(gamePath: trimmedPath, multiplier: multiplier)
             } catch {
                 DispatchQueue.main.async {
                     self?.patchFeedback = PatchFeedback(title: "Cursor Size", message: error.localizedDescription, isError: true)
@@ -1207,7 +1211,12 @@ final class MainDashboardViewModel: ObservableObject {
         let trimmedPath = version.gamePath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPath.isEmpty else { return version }
 
-        let rawValue = DXVKConfigService.cursorSizeMultiplier(gamePath: trimmedPath) ?? 1
+        // Prefer the active renderer's config file; fall back to the other so a
+        // value written under the previous renderer is still picked up.
+        let dxvkValue = DXVKConfigService.cursorSizeMultiplier(gamePath: trimmedPath)
+        let mtld3dValue = MTLD3DConfigService.cursorSizeMultiplier(gamePath: trimmedPath)
+        let preferred = version.settings.renderer == .mtld3d ? (mtld3dValue ?? dxvkValue) : (dxvkValue ?? mtld3dValue)
+        let rawValue = preferred ?? 1
         let normalized = MainDashboardViewModel.normalizedCursorSizeMultiplier(rawValue)
         if updated.settings.cursorSizeMultiplier != normalized {
             updated.settings.cursorSizeMultiplier = normalized
