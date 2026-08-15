@@ -40,10 +40,10 @@ GAME_APP_ID ?= com.wowsilicon.swift.game
 # `make bundle` (or `make run`) re-downloads the ~150 MB tarball — accepted;
 # CI restores $(RUNTIME_CACHE) via actions/cache keyed on runtime-v$(RUNTIME_VERSION)
 # (bump the key in .github/workflows/release.yml when bumping RUNTIME_VERSION).
-RUNTIME_VERSION ?= 3
+RUNTIME_VERSION ?= 4
 RUNTIME_ASSET := wowsilicon-wine-$(RUNTIME_VERSION)-osx64.tar.xz
 RUNTIME_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(RUNTIME_ASSET)
-RUNTIME_SHA256 ?= 9ae26c6a14dc4e0d8119e20be6eac035b2ddd2f24b084f6d2dfcff90798831f2
+RUNTIME_SHA256 ?= 5cd35fd2fa3abf7d7c47116e1eaa81e3dcf47d82490564365ee989ca935d78b8
 RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
 # d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to a
