@@ -1,0 +1,38 @@
+{
+    "version": "0.1.0",
+    "id": "bcfc7316-ebf1-497d-9a9a-b737461826b0",
+    "timestamp": "2026-08-15T13:05:40.142200Z",
+    "vcs": {
+        "type": "git",
+        "revision": "be1cf44303ef3a43d6b477627b6895e7c539a72d",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "docs/superpowers/specs/2026-08-15-mtld3d-graphics-backend-design.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:e0de727178b484eea127db8131593feb2d0be120",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 195
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
