@@ -94,7 +94,7 @@ jobs:
         with:
           path: .build/runtime-cache
           # Keep in sync with RUNTIME_VERSION in the Makefile.
-          key: runtime-v1
+          key: runtime-v3
 
       - name: Build DMG and appcast
         env:
