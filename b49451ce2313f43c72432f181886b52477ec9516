@@ -1,0 +1,198 @@
+{
+    "version": "0.1.0",
+    "id": "194a1a65-af46-4896-b1f5-eb4f6ad282f5",
+    "timestamp": "2026-08-15T07:29:25.574790Z",
+    "vcs": {
+        "type": "git",
+        "revision": "b49451ce2313f43c72432f181886b52477ec9516",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:cb5d0cb56e96d43949a01fa9f1d301419fb061b4",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 50,
+                            "end_line": 51
+                        },
+                        {
+                            "start_line": 53,
+                            "end_line": 59
+                        },
+                        {
+                            "start_line": 62,
+                            "end_line": 62
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/Services/LaunchService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:cb5d0cb56e96d43949a01fa9f1d301419fb061b4",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 124,
+                            "end_line": 126
+                        },
+                        {
+                            "start_line": 134,
+                            "end_line": 135
+                        },
+                        {
+                            "start_line": 239,
+                            "end_line": 240
+                        },
+                        {
+                            "start_line": 301,
+                            "end_line": 312
+                        },
+                        {
+                            "start_line": 315,
+                            "end_line": 315
+                        },
+                        {
+                            "start_line": 317,
+                            "end_line": 320
+                        },
+                        {
+                            "start_line": 323,
+                            "end_line": 349
+                        },
+                        {
+                            "start_line": 352,
+                            "end_line": 368
+                        },
+                        {
+                            "start_line": 402,
+                            "end_line": 403
+                        },
+                        {
+                            "start_line": 414,
+                            "end_line": 415
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PatchService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:cb5d0cb56e96d43949a01fa9f1d301419fb061b4",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 33,
+                            "end_line": 38
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/LaunchSessionLogTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:cb5d0cb56e96d43949a01fa9f1d301419fb061b4",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 2
+                        },
+                        {
+                            "start_line": 4,
+                            "end_line": 22
+                        },
+                        {
+                            "start_line": 25,
+                            "end_line": 25
+                        },
+                        {
+                            "start_line": 27,
+                            "end_line": 41
+                        },
+                        {
+                            "start_line": 43,
+                            "end_line": 86
+                        },
+                        {
+                            "start_line": 89,
+                            "end_line": 89
+                        },
+                        {
+                            "start_line": 91,
+                            "end_line": 99
+                        },
+                        {
+                            "start_line": 102,
+                            "end_line": 152
+                        },
+                        {
+                            "start_line": 155,
+                            "end_line": 171
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/runtime/build-wine-runtime.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:cb5d0cb56e96d43949a01fa9f1d301419fb061b4",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 17,
+                            "end_line": 26
+                        },
+                        {
+                            "start_line": 70,
+                            "end_line": 72
+                        },
+                        {
+                            "start_line": 74,
+                            "end_line": 86
+                        },
+                        {
+                            "start_line": 88,
+                            "end_line": 90
+                        },
+                        {
+                            "start_line": 215,
+                            "end_line": 225
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
