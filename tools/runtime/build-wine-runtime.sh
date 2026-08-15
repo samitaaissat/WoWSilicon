@@ -14,6 +14,17 @@
 #   RUNTIME_BUILD_NUMBER  runtime build number (default: 1)
 #   RUNTIME_WORK_DIR      scratch dir (default: <repo>/.build/wine-runtime)
 #
+# winedbg is deliberately BUILT (do not add --disable-winedbg). The upstream
+# branch routes all crash reporting through it: wine.inf sets
+# WineDbg\ShowCrashDialog=0, AeDebug\Debugger="winedbg --auto %ld %ld", and the
+# CW "dump crash info to stderr" hack makes winedbg print the faulting thread,
+# backtrace, module list and registers to the real unix stderr. Without the
+# binary, a crashing game only ever emits
+#   err:seh:start_debugger Couldn't start debugger L"winedbg --auto ..." (2)
+# and dies with no stack — and macOS produces no .ips either, because wine
+# handled the signal itself. That combination is what makes crashes here
+# unreproducible after the fact.
+#
 # Prereqs (brew): bison ccache gettext mingw-w64 pkgconfig freetype gnutls
 #                 libpcap sdl2 molten-vk
 set -euo pipefail
@@ -56,6 +67,28 @@ fi
 # branch fetch (GitHub still serves the orphaned commit object directly).
 git -C "$SRC_DIR" fetch origin "$WINE_COMMIT"
 git -C "$SRC_DIR" checkout --detach "$WINE_COMMIT"
+# checkout --detach onto the commit we are already on leaves earlier patched
+# files in place, so a rebuild would stack patches or fail to apply them.
+git -C "$SRC_DIR" reset --hard "$WINE_COMMIT"
+
+# --- WoWSilicon patches ---------------------------------------------------
+# Applied in filename order on top of the pinned commit. Each must apply
+# cleanly: a silently skipped patch would ship a runtime that looks fine and
+# is missing a fix, so --check gates before anything is modified.
+PATCH_DIR="$ROOT_DIR/tools/runtime/patches"
+if [[ -d "$PATCH_DIR" ]]; then
+  shopt -s nullglob
+  for patch in "$PATCH_DIR"/*.patch; do
+    echo "Applying $(basename "$patch")"
+    if ! git -C "$SRC_DIR" apply --check "$patch"; then
+      echo "error: $(basename "$patch") does not apply to $WINE_COMMIT." >&2
+      echo "       Rebase it after bumping WINE_COMMIT." >&2
+      exit 1
+    fi
+    git -C "$SRC_DIR" apply "$patch"
+  done
+  shopt -u nullglob
+fi
 
 # --- Build environment ----------------------------------------------------
 export MACOSX_DEPLOYMENT_TARGET=10.15
@@ -74,7 +107,6 @@ cd "$BUILD_DIR"
 "$SRC_DIR/configure" \
   --prefix= \
   --disable-tests \
-  --disable-winedbg \
   --enable-win64 \
   --enable-archs=i386,x86_64 \
   --with-mingw \
@@ -180,6 +212,18 @@ echo "Runtime artifacts:"
 ls -lh "$DIST_DIR"
 
 # --- Smoke test ---------------------------------------------------------------
+# The crash reporter must be in the tree (hard gate). AeDebug launches the
+# i386 winedbg.exe for the 32-bit game clients; without it every crash is
+# reported as "Couldn't start debugger" with no stack. See the note at the top
+# of this script.
+for arch in i386 x86_64; do
+  if [[ ! -f "$STAGING_DIR/wine/lib/wine/${arch}-windows/winedbg.exe" ]]; then
+    echo "error: winedbg.exe missing for ${arch} — crashes would be unreportable." >&2
+    echo "       Did someone re-add --disable-winedbg to configure?" >&2
+    exit 1
+  fi
+done
+
 # Bundled dylibs must not reference the build host's brew prefix (hard gate).
 if otool -L "$STAGING_DIR/wine/lib/"*.dylib | grep -E $'\t/(usr/local|opt/homebrew)/'; then
   echo "error: bundled dylib still references the build host's Homebrew prefix" >&2

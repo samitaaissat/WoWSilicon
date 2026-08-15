@@ -47,11 +47,19 @@ RUNTIME_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runt
 RUNTIME_SHA256 ?= 1ee361ac913301cb3a771f91f159fcc088be7edb2bfd16368feba95bcf37dfed
 RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
-# d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to the
-# runtime-v$(RUNTIME_VERSION) release page). Bump all three pins together.
+# d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to a
+# runtime-v* release page). Bump all three pins together.
+#
+# D9MT_RELEASE is deliberately INDEPENDENT of RUNTIME_VERSION: the two
+# artifacts version separately (a d9mt bump often lands on an older runtime-v
+# tag, and a wine rebuild does not republish d9mt), so deriving this URL from
+# RUNTIME_VERSION made every runtime bump silently point `make fetch-d9mt` at a
+# release with no d9mt asset. RuntimeUpdateService already scans every
+# runtime-v* release for the same reason.
+D9MT_RELEASE ?= runtime-v1
 D9MT_VERSION ?= 4
 D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
-D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(D9MT_ASSET)
+D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/$(D9MT_RELEASE)/$(D9MT_ASSET)
 D9MT_SHA256 ?= 8d8648138e43fe7c8b6e98cee13d19dc4f2a0686f51a799071a378a1aa220838
 D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
 D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
