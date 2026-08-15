@@ -1,0 +1,208 @@
+{
+    "version": "0.1.0",
+    "id": "83f879d2-842d-4457-a830-65bf6414dd18",
+    "timestamp": "2026-08-15T17:48:40.128170Z",
+    "vcs": {
+        "type": "git",
+        "revision": "03158a649486f8d063a4d2d02fab0e755623f3f7",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/PatchService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:4d3143b4f20e0dc6af3a1a0076b4229334b61b29",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 86,
+                            "end_line": 86
+                        },
+                        {
+                            "start_line": 88,
+                            "end_line": 94
+                        },
+                        {
+                            "start_line": 99,
+                            "end_line": 101
+                        },
+                        {
+                            "start_line": 313,
+                            "end_line": 313
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/Services/RuntimeUpdateService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:4d3143b4f20e0dc6af3a1a0076b4229334b61b29",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 164,
+                            "end_line": 176
+                        },
+                        {
+                            "start_line": 462,
+                            "end_line": 468
+                        },
+                        {
+                            "start_line": 471,
+                            "end_line": 472
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/Services/WineRuntime.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:4d3143b4f20e0dc6af3a1a0076b4229334b61b29",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 152,
+                            "end_line": 169
+                        },
+                        {
+                            "start_line": 174,
+                            "end_line": 181
+                        },
+                        {
+                            "start_line": 184,
+                            "end_line": 184
+                        },
+                        {
+                            "start_line": 186,
+                            "end_line": 187
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/MTLD3DEndToEndTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:4d3143b4f20e0dc6af3a1a0076b4229334b61b29",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 2
+                        },
+                        {
+                            "start_line": 4,
+                            "end_line": 36
+                        },
+                        {
+                            "start_line": 38,
+                            "end_line": 53
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 74
+                        },
+                        {
+                            "start_line": 76,
+                            "end_line": 79
+                        },
+                        {
+                            "start_line": 81,
+                            "end_line": 116
+                        },
+                        {
+                            "start_line": 118,
+                            "end_line": 128
+                        },
+                        {
+                            "start_line": 131,
+                            "end_line": 153
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/PatchServiceGamePatchTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:4d3143b4f20e0dc6af3a1a0076b4229334b61b29",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 162,
+                            "end_line": 169
+                        },
+                        {
+                            "start_line": 172,
+                            "end_line": 193
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/WineRuntimeTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:4d3143b4f20e0dc6af3a1a0076b4229334b61b29",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 92,
+                            "end_line": 92
+                        },
+                        {
+                            "start_line": 101,
+                            "end_line": 117
+                        },
+                        {
+                            "start_line": 120,
+                            "end_line": 130
+                        },
+                        {
+                            "start_line": 133,
+                            "end_line": 144
+                        },
+                        {
+                            "start_line": 147,
+                            "end_line": 161
+                        },
+                        {
+                            "start_line": 188,
+                            "end_line": 188
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
