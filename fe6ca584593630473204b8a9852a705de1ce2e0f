@@ -1,0 +1,94 @@
+{
+    "version": "0.1.0",
+    "id": "09e316ac-fff3-423f-b6ba-0be82831d439",
+    "timestamp": "2026-08-15T13:42:59.293523Z",
+    "vcs": {
+        "type": "git",
+        "revision": "fe6ca584593630473204b8a9852a705de1ce2e0f",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Sources/WoWSiliconSwift/Services/MTLD3DConfigService.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:28548c057394f5746bb56aa5302309e27f6847eb",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 12
+                        },
+                        {
+                            "start_line": 17,
+                            "end_line": 82
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Sources/WoWSiliconSwift/ViewModels/MainDashboardViewModel.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:28548c057394f5746bb56aa5302309e27f6847eb",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1196,
+                            "end_line": 1198
+                        },
+                        {
+                            "start_line": 1200,
+                            "end_line": 1200
+                        },
+                        {
+                            "start_line": 1214,
+                            "end_line": 1219
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "Tests/WoWSiliconSwiftTests/MTLD3DConfigServiceTests.swift",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:28548c057394f5746bb56aa5302309e27f6847eb",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 46
+                        },
+                        {
+                            "start_line": 49,
+                            "end_line": 60
+                        },
+                        {
+                            "start_line": 63,
+                            "end_line": 75
+                        },
+                        {
+                            "start_line": 78,
+                            "end_line": 83
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
