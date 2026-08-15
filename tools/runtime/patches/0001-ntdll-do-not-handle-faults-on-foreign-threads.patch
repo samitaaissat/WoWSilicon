@@ -1,0 +1,78 @@
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -2353,6 +2353,52 @@
+ 
+ 
+ /**********************************************************************
++ *		is_foreign_thread
++ *
++ * TRUE for a thread wine did not create. The d9mt renderer pulls Metal and
++ * libdispatch callback threads into the process, and the fault handlers below
++ * assume every thread has a wine stack layout: get_current_thread_data() just
++ * masks rsp (rsp & ~signal_stack_mask), so on a foreign thread it returns
++ * garbage, the handler faults again while handling the first fault, and the
++ * thread dies with no stderr, no macOS crash report and the process limping on
++ * in a degraded state.
++ *
++ * get_thread_data() is the pthread-keyed accessor (the one NtCurrentTeb uses)
++ * and is NULL on any thread wine did not set up, which makes it the reliable
++ * discriminator here.
++ */
++static inline BOOL is_foreign_thread(void)
++{
++    return !get_thread_data();
++}
++
++
++/**********************************************************************
++ *		reraise_foreign_thread_fault
++ *
++ * Restores the default disposition for the fatal fault signals and returns.
++ * The faulting instruction then re-executes and the process dies the normal
++ * way, so macOS writes a crash report naming the real faulting frame instead
++ * of the fault vanishing without a trace.
++ */
++static void reraise_foreign_thread_fault(void)
++{
++    static const char msg[] =
++        "wine: fault on a thread not created by wine; restoring default handler so it gets reported\n";
++    struct sigaction act;
++
++    write( 2, msg, sizeof(msg) - 1 );
++
++    act.sa_handler = SIG_DFL;
++    act.sa_flags = 0;
++    sigemptyset( &act.sa_mask );
++    sigaction( SIGSEGV, &act, NULL );
++    sigaction( SIGBUS, &act, NULL );
++    sigaction( SIGILL, &act, NULL );
++}
++
++
++/**********************************************************************
+  *		segv_handler
+  *
+  * Handler for SIGSEGV and related errors.
+@@ -2360,9 +2406,20 @@
+ static void segv_handler( int signal, siginfo_t *siginfo, void *_sigcontext )
+ {
+     ucontext_t *sigcontext = _sigcontext;
+-    struct thread_data *data = init_handler( sigcontext );
++    struct thread_data *data;
+     struct xcontext context;
+-    EXCEPTION_RECORD rec = { .ExceptionAddress = (void *)RIP_sig(sigcontext) };
++    EXCEPTION_RECORD rec = { 0 };
++
++    /* Registered for SIGSEGV, SIGILL and SIGBUS — the signals a faulting
++     * Metal/d9mt worker thread actually raises. */
++    if (is_foreign_thread())
++    {
++        reraise_foreign_thread_fault();
++        return;
++    }
++
++    data = init_handler( sigcontext );
++    rec.ExceptionAddress = (void *)RIP_sig(sigcontext);
+ 
+     save_context( data, &context, sigcontext );
+ 

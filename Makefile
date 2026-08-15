@@ -41,17 +41,25 @@ ROSETTA_SRC := Sources/WoWSiliconSwift/Resources/Patching/rosettax87
 # `make bundle` (or `make run`) re-downloads the ~150 MB tarball — accepted;
 # CI restores $(RUNTIME_CACHE) via actions/cache keyed on runtime-v$(RUNTIME_VERSION)
 # (bump the key in .github/workflows/release.yml when bumping RUNTIME_VERSION).
-RUNTIME_VERSION ?= 1
+RUNTIME_VERSION ?= 3
 RUNTIME_ASSET := wowsilicon-wine-$(RUNTIME_VERSION)-osx64.tar.xz
 RUNTIME_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(RUNTIME_ASSET)
-RUNTIME_SHA256 ?= 1ee361ac913301cb3a771f91f159fcc088be7edb2bfd16368feba95bcf37dfed
+RUNTIME_SHA256 ?= 9ae26c6a14dc4e0d8119e20be6eac035b2ddd2f24b084f6d2dfcff90798831f2
 RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
-# d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to the
-# runtime-v$(RUNTIME_VERSION) release page). Bump all three pins together.
+# d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to a
+# runtime-v* release page). Bump all three pins together.
+#
+# D9MT_RELEASE is deliberately INDEPENDENT of RUNTIME_VERSION: the two
+# artifacts version separately (a d9mt bump often lands on an older runtime-v
+# tag, and a wine rebuild does not republish d9mt), so deriving this URL from
+# RUNTIME_VERSION made every runtime bump silently point `make fetch-d9mt` at a
+# release with no d9mt asset. RuntimeUpdateService already scans every
+# runtime-v* release for the same reason.
+D9MT_RELEASE ?= runtime-v1
 D9MT_VERSION ?= 5
 D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
-D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(D9MT_ASSET)
+D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/$(D9MT_RELEASE)/$(D9MT_ASSET)
 D9MT_SHA256 ?= 8ceff468f57cc87ad26eacf5d6775c4f9b432dc89df31a18bc3b8b9643c0d576
 D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
 D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
