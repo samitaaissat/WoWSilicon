@@ -1,0 +1,116 @@
+{
+    "version": "0.1.0",
+    "id": "d0b68bff-3407-47b7-ba6d-feff4a9b2613",
+    "timestamp": "2026-08-15T17:50:35.631902Z",
+    "vcs": {
+        "type": "git",
+        "revision": "14fb43d2373fa493129d1b73d5f695a624bde094",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Packaging/Info.plist",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:3b37c6fcdc63ef92f0c3a984c401f27837f49579",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 41,
+                            "end_line": 42
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/releases/3.0.0.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:3b37c6fcdc63ef92f0c3a984c401f27837f49579",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 4
+                        },
+                        {
+                            "start_line": 6,
+                            "end_line": 6
+                        },
+                        {
+                            "start_line": 8,
+                            "end_line": 9
+                        },
+                        {
+                            "start_line": 11,
+                            "end_line": 16
+                        },
+                        {
+                            "start_line": 18,
+                            "end_line": 18
+                        },
+                        {
+                            "start_line": 20,
+                            "end_line": 25
+                        },
+                        {
+                            "start_line": 27,
+                            "end_line": 27
+                        },
+                        {
+                            "start_line": 29,
+                            "end_line": 32
+                        },
+                        {
+                            "start_line": 34,
+                            "end_line": 38
+                        },
+                        {
+                            "start_line": 40,
+                            "end_line": 40
+                        },
+                        {
+                            "start_line": 42,
+                            "end_line": 53
+                        },
+                        {
+                            "start_line": 55,
+                            "end_line": 55
+                        },
+                        {
+                            "start_line": 57,
+                            "end_line": 71
+                        },
+                        {
+                            "start_line": 73,
+                            "end_line": 73
+                        },
+                        {
+                            "start_line": 75,
+                            "end_line": 81
+                        },
+                        {
+                            "start_line": 89,
+                            "end_line": 89
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
