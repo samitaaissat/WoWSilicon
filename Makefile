@@ -41,10 +41,10 @@ ROSETTA_SRC := Sources/WoWSiliconSwift/Resources/Patching/rosettax87
 # `make bundle` (or `make run`) re-downloads the ~150 MB tarball — accepted;
 # CI restores $(RUNTIME_CACHE) via actions/cache keyed on runtime-v$(RUNTIME_VERSION)
 # (bump the key in .github/workflows/release.yml when bumping RUNTIME_VERSION).
-RUNTIME_VERSION ?= 1
+RUNTIME_VERSION ?= 3
 RUNTIME_ASSET := wowsilicon-wine-$(RUNTIME_VERSION)-osx64.tar.xz
 RUNTIME_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/runtime-v$(RUNTIME_VERSION)/$(RUNTIME_ASSET)
-RUNTIME_SHA256 ?= 1ee361ac913301cb3a771f91f159fcc088be7edb2bfd16368feba95bcf37dfed
+RUNTIME_SHA256 ?= 9ae26c6a14dc4e0d8119e20be6eac035b2ddd2f24b084f6d2dfcff90798831f2
 RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 
 # d9mt renderer payload (built by tools/d9mt/build-payload.sh, uploaded to a
