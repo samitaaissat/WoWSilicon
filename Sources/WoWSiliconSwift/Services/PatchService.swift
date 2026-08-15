@@ -26,21 +26,6 @@ enum PatchServiceError: LocalizedError {
 }
 
 enum PatchService {
-    /// Set once at app startup when `RuntimeUpdateService` has a writable
-    /// cache directory to check for a downloaded d9mt payload newer than the
-    /// one bundled with the app; nil (the default, and the only mode the test
-    /// suite exercises) means "only use the bundled Patching/d9mt resources".
-    ///
-    /// `nonisolated(unsafe)`: written exactly once, from the app's startup path
-    /// (`WoWSiliconSwiftApp`), before any patching can run; every other access
-    /// is a read. Swift 6 cannot see that invariant, and without the annotation
-    /// the whole test target fails to compile.
-    nonisolated(unsafe) static var d9mtOverrideDirectory: URL?
-
-    /// Same seam for the mtld3d payload cache (see `d9mtOverrideDirectory` for
-    /// the write-once contract).
-    nonisolated(unsafe) static var mtld3dOverrideDirectory: URL?
-
     static func applyGamePatch(for version: GameVersion) throws {
         let gameURL = try stageGamePatchFiles(for: version)
 
@@ -470,8 +455,8 @@ enum PatchService {
         named name: String,
         extension ext: String?,
         subdirectory: String,
-        overrideDirectory: URL? = PatchService.d9mtOverrideDirectory,
-        mtld3dOverrideDirectory: URL? = PatchService.mtld3dOverrideDirectory
+        overrideDirectory: URL? = RuntimeUpdatePaths.d9mtCacheDirectory(),
+        mtld3dOverrideDirectory: URL? = RuntimeUpdatePaths.mtld3dCacheDirectory()
     ) -> URL? {
         if let overrideURL = payloadOverrideResourceURL(named: name, extension: ext, subdirectory: subdirectory, payloadPrefix: "Patching/d9mt", root: overrideDirectory) {
             return overrideURL
