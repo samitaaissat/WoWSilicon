@@ -40,7 +40,6 @@ struct WoWSiliconSwiftApp: App {
         }
         _ = UpdaterService.shared
         WineRuntime.shared.setOverrideGameAppURL(RuntimeUpdatePaths.overrideGameAppURL())
-        PatchService.d9mtOverrideDirectory = RuntimeUpdatePaths.d9mtCacheDirectory()
         RuntimeUpdateService.shared.checkForUpdatesOnLaunch()
     }
 }

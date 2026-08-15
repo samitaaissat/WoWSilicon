@@ -3,7 +3,10 @@
 #   - d9mt  @ pinned commit below (samitaaissat/d9mt, our fork of
 #     neo773/d9mt: upstream 237e2935 + the depth-bias fix (projected
 #     textures) + pass-1 bind-path perf + pass-2 fused pass transitions,
-#     push-block upload cache, and the d9vk-parity adapter identity —
+#     push-block upload cache, and the d9vk-parity adapter identity, +
+#     pass-3 WWDC21-10148 redundant-binding elision (viewports, vertex
+#     buffers) kept; the pass-3 pixelFormatView narrowing was REVERTED
+#     (payload v6) after a live ground-decal clipping regression report —
 #     see the fork's `wowsilicon` integration branch and its
 #     docs/PERF-ROADMAP.md)
 #   - DXMT winemetal @ v0.80 (3Shain/dxmt, last MIT-licensed release)
@@ -20,7 +23,7 @@
 set -euo pipefail
 
 D9MT_REPO=https://github.com/samitaaissat/d9mt
-D9MT_COMMIT=66762fd0fcedca4e2681e919f559c80b35a5272d
+D9MT_COMMIT=918e47a4f4dc22efa7da0f0998319deb854ca845
 DXMT_TAG=v0.80
 PAYLOAD_VERSION="${PAYLOAD_VERSION:-4}"
 
