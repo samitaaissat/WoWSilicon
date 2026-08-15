@@ -121,13 +121,18 @@ final class LaunchService: @unchecked Sendable {
             deleteWDBDirectories(at: gameURL)
         }
 
+        // Best-effort: a read-only data root just means this session goes
+        // unrecorded, never that it fails to launch.
+        let sessionLogPath = try? LaunchService.prepareSessionLogURL().path
+
         let shellCommand = LaunchService.makeShellCommand(
             gamePath: gameURL.path,
             executablePath: wowExecutableURL.path,
             wineBinaryPath: wineBinaryURL.path,
             rosettaLoaderPath: rosettaLoaderURL.path,
             winePrefixPath: PortableStorage.shared.prefixURL.path,
-            settings: version.settings
+            settings: version.settings,
+            sessionLogPath: sessionLogPath
         )
 
         return LaunchConfiguration(
@@ -231,7 +236,8 @@ final class LaunchService: @unchecked Sendable {
         winePrefixPath: String,
         settings: VersionSettings,
         dllOverrides: String = "mscoree=d;mshtml=d",
-        extraArguments: [String] = []
+        extraArguments: [String] = [],
+        sessionLogPath: String? = nil
     ) -> String {
         let mtlValue = settings.enableMetalHud ? "1" : "0"
         // The d3d9 disposition belongs to the renderer, not the call site: d9vk and
@@ -291,7 +297,76 @@ final class LaunchService: @unchecked Sendable {
         for argument in extraArguments {
             command += " \(doubleQuote(argument))"
         }
-        return command
+
+        guard let sessionLogPath, !sessionLogPath.isEmpty else { return command }
+        // Persist the whole session, not just wine's own output. Two failure
+        // modes are invisible without this:
+        //  - a wine client that loses its wineserver dies inside abort_thread(),
+        //    which prints NOTHING; the auto-started wineserver inherits this very
+        //    stderr, so its fatal message is the only surviving record of why.
+        //  - an unhandled Windows exception is reported on stderr and nowhere
+        //    else — no macOS .ips is produced, because wine handles the signal.
+        // Grouping before the redirect (rather than redirecting wine alone) is
+        // what puts the server's messages in the same file, and `$?` records the
+        // client's real exit status past the pipeline.
+        return "{ \(command); echo \"[wowsilicon] wine exited with status $?\"; } 2>&1 | tee -a \(doubleQuote(sessionLogPath))"
+    }
+
+    // MARK: - Session logs
+
+    /// Session logs live beside the prefix in the portable Data folder so a
+    /// crash report can be collected without reproducing the failure.
+    static func sessionLogsDirectory() -> URL {
+        PortableStorage.shared.dataRootURL.appendingPathComponent("Logs", isDirectory: true)
+    }
+
+    /// Allocates the log file for one launch and prunes older ones.
+    ///
+    /// Throws rather than degrading when the directory cannot be written (a DMG,
+    /// a translocated app, a read-only volume): the caller must then launch with
+    /// `sessionLogPath: nil`. A `tee` whose file cannot be opened exits
+    /// immediately, and the game takes SIGPIPE on its next write to stdout — so
+    /// "no log" has to be a real branch, never a half-wired pipeline.
+    static func prepareSessionLogURL(
+        in directory: URL = LaunchService.sessionLogsDirectory(),
+        timestamp: Date = Date(),
+        fileManager: FileManager = .default,
+        keepNewest: Int = 10
+    ) throws -> URL {
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        pruneSessionLogs(in: directory, fileManager: fileManager, keepNewest: keepNewest)
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let url = directory.appendingPathComponent("wine-session-\(formatter.string(from: timestamp)).log")
+
+        guard fileManager.createFile(atPath: url.path, contents: nil) else {
+            throw LaunchServiceError.processLaunchFailed(
+                "Could not create the session log at \(url.path)."
+            )
+        }
+        return url
+    }
+
+    /// Keeps the `keepNewest - 1` most recent logs, leaving room for the one the
+    /// caller is about to create. Only ever touches its own `wine-session-*.log`
+    /// files — the Logs folder is user-visible and may hold anything else.
+    private static func pruneSessionLogs(in directory: URL, fileManager: FileManager, keepNewest: Int) {
+        guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return }
+        let logs = names
+            .filter { $0.hasPrefix("wine-session-") && $0.hasSuffix(".log") }
+            .map { directory.appendingPathComponent($0) }
+
+        func modified(_ url: URL) -> Date {
+            let attributes = try? fileManager.attributesOfItem(atPath: url.path)
+            return (attributes?[.modificationDate] as? Date) ?? .distantPast
+        }
+
+        let newestFirst = logs.sorted { modified($0) > modified($1) }
+        for url in newestFirst.dropFirst(max(keepNewest - 1, 0)) {
+            try? fileManager.removeItem(at: url)
+        }
     }
 
     /// Chromium arguments for third-party (usually Electron-based) launcher exes.
@@ -324,7 +399,8 @@ final class LaunchService: @unchecked Sendable {
         wineBinaryPath: String,
         rosettaLoaderPath: String?,
         winePrefixPath: String,
-        settings: VersionSettings
+        settings: VersionSettings,
+        sessionLogPath: String? = nil
     ) -> String {
         let exeURL = URL(fileURLWithPath: exePath)
         return makeShellCommand(
@@ -335,7 +411,8 @@ final class LaunchService: @unchecked Sendable {
             winePrefixPath: winePrefixPath,
             settings: settings,
             dllOverrides: "mscoree=b;mshtml=d",
-            extraArguments: launcherChromiumArguments
+            extraArguments: launcherChromiumArguments,
+            sessionLogPath: sessionLogPath
         )
     }
 
