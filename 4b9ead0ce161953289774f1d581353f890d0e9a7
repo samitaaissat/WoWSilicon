@@ -1,0 +1,102 @@
+{
+    "version": "0.1.0",
+    "id": "97acc272-5b48-4bb1-bb57-9c9fd7d2c267",
+    "timestamp": "2026-08-15T08:03:06.306814Z",
+    "vcs": {
+        "type": "git",
+        "revision": "4b9ead0ce161953289774f1d581353f890d0e9a7",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "AGENTS.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:0a32f2fd9be064ad8ed91c8a80156d4db73e3f0e",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 26,
+                            "end_line": 26
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "CLAUDE.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:0a32f2fd9be064ad8ed91c8a80156d4db73e3f0e",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 28,
+                            "end_line": 28
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "docs/gpu-optimization-wwdc21-10148.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:0a32f2fd9be064ad8ed91c8a80156d4db73e3f0e",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 57
+                        },
+                        {
+                            "start_line": 59,
+                            "end_line": 69
+                        },
+                        {
+                            "start_line": 71,
+                            "end_line": 118
+                        },
+                        {
+                            "start_line": 120,
+                            "end_line": 170
+                        },
+                        {
+                            "start_line": 172,
+                            "end_line": 201
+                        },
+                        {
+                            "start_line": 203,
+                            "end_line": 309
+                        },
+                        {
+                            "start_line": 311,
+                            "end_line": 364
+                        },
+                        {
+                            "start_line": 366,
+                            "end_line": 377
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
