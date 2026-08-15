@@ -26,12 +26,6 @@ enum PatchServiceError: LocalizedError {
 }
 
 enum PatchService {
-    /// Set once at app startup when `RuntimeUpdateService` has a writable
-    /// cache directory to check for a downloaded d9mt payload newer than the
-    /// one bundled with the app; nil (the default, and the only mode the test
-    /// suite exercises) means "only use the bundled Patching/d9mt resources".
-    static var d9mtOverrideDirectory: URL?
-
     static func applyGamePatch(for version: GameVersion) throws {
         let gameURL = try stageGamePatchFiles(for: version)
 
@@ -408,7 +402,7 @@ enum PatchService {
         named name: String,
         extension ext: String?,
         subdirectory: String,
-        overrideDirectory: URL? = PatchService.d9mtOverrideDirectory
+        overrideDirectory: URL? = RuntimeUpdatePaths.d9mtCacheDirectory()
     ) -> URL? {
         if let overrideURL = d9mtOverrideResourceURL(named: name, extension: ext, subdirectory: subdirectory, root: overrideDirectory) {
             return overrideURL
