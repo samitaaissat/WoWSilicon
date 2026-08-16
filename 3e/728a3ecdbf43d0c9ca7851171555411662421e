@@ -1,0 +1,38 @@
+{
+    "version": "0.1.0",
+    "id": "183180dd-7f18-4153-947c-543730eb7ec4",
+    "timestamp": "2026-08-16T21:34:07.697846Z",
+    "vcs": {
+        "type": "git",
+        "revision": "3e728a3ecdbf43d0c9ca7851171555411662421e",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "docs/releases/3.0.1.md",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:297f3b36825325ee95c828e57f3f7c615b0b3c07",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.233"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 1,
+                            "end_line": 1
+                        },
+                        {
+                            "start_line": 3,
+                            "end_line": 13
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
