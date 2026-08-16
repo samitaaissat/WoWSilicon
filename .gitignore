@@ -23,6 +23,9 @@ Sources/WoWSiliconSwift/Resources/Patching/mtld3d/
 tools/mtld3d/work/
 tools/mtld3d/dist/
 
+# git worktree checkouts
+.worktrees/
+
 .*
 !.gitignore
 !.github/
