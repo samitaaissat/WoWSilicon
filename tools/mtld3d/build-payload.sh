@@ -20,9 +20,9 @@
 # MTLD3D_* pins in the Makefile.
 set -euo pipefail
 
-MTLD3D_TAG=v0.5.0
+MTLD3D_TAG=v0.6.0
 MTLD3D_URL="https://github.com/athei/mtld3d/releases/download/$MTLD3D_TAG/mtld3d.tar.xz"
-MTLD3D_SHA256=3e53e172580cc8c1409cf8746170e81690cb0cc7132d1d121f281001500091d5
+MTLD3D_SHA256=906d7ef476ccd78d7fbbf26f7d5f36b81af6d1b3fb9f61ff1f9f2660c0940e10
 PAYLOAD_VERSION="${PAYLOAD_VERSION:-1}"
 
 cd "$(dirname "$0")"

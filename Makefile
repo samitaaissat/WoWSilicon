@@ -67,10 +67,10 @@ D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
 # tools/mtld3d/build-payload.sh, uploaded to the runtime-v1 payload shelf like
 # d9mt). Bump all three pins together.
 MTLD3D_RELEASE ?= runtime-v1
-MTLD3D_VERSION ?= 1
+MTLD3D_VERSION ?= 2
 MTLD3D_ASSET := mtld3d-$(MTLD3D_VERSION).tar.gz
 MTLD3D_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/$(MTLD3D_RELEASE)/$(MTLD3D_ASSET)
-MTLD3D_SHA256 ?= 14213dca1e8f28e622839fd320f17b8770cc0f8612db7721e46a16d35d3b9229
+MTLD3D_SHA256 ?= 4cff8d47988a2c100f1a09548334a7b25c4fe00fa7f05adca585bf5af5eff662
 MTLD3D_CACHE := $(BUILD_DIR)/mtld3d-cache
 MTLD3D_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/mtld3d
 
