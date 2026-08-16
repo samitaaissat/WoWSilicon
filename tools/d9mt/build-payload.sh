@@ -6,9 +6,13 @@
 #     push-block upload cache, and the d9vk-parity adapter identity, +
 #     pass-3 WWDC21-10148 redundant-binding elision (viewports, vertex
 #     buffers) kept; the pass-3 pixelFormatView narrowing was REVERTED
-#     (payload v6) after a live ground-decal clipping regression report —
-#     see the fork's `wowsilicon` integration branch and its
-#     docs/PERF-ROADMAP.md)
+#     (payload v6) after a live ground-decal clipping regression report,
+#     + pass-3 W1 FF hot/cold constant split (VS WORLD/VIEW transforms
+#     move onto the push-constant path, PROJECTION/TEXTUREn/lighting
+#     stay in the cold FF UBO; xform submit_avg_ms -48%) and W2 part-mode
+#     fast paths (LockBuffer direct-map skip, PrepareDraw texture-mask
+#     fast path) — perf/pass-3 branch, FINAL commit 5f7ae4d2 — see the
+#     fork's docs/PERF-ROADMAP.md)
 #   - DXMT winemetal @ v0.80 (3Shain/dxmt, last MIT-licensed release)
 # Output: dist/d9mt-<N>.tar.gz + .sha256, layout documented in the repo plan:
 #   d9mt/d3d9.dll                              (d9mt i686 driver, build/d3d9fe.dll renamed)
@@ -23,9 +27,9 @@
 set -euo pipefail
 
 D9MT_REPO=https://github.com/samitaaissat/d9mt
-D9MT_COMMIT=918e47a4f4dc22efa7da0f0998319deb854ca845
+D9MT_COMMIT=5f7ae4d2dbf3d2f881bf12d2c310fba2825898ef
 DXMT_TAG=v0.80
-PAYLOAD_VERSION="${PAYLOAD_VERSION:-4}"
+PAYLOAD_VERSION="${PAYLOAD_VERSION:-7}"
 
 cd "$(dirname "$0")"
 WORK="$PWD/work"

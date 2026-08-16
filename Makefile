@@ -56,10 +56,10 @@ RUNTIME_CACHE := $(BUILD_DIR)/runtime-cache
 # release with no d9mt asset. RuntimeUpdateService already scans every
 # runtime-v* release for the same reason.
 D9MT_RELEASE ?= runtime-v1
-D9MT_VERSION ?= 6
+D9MT_VERSION ?= 7
 D9MT_ASSET := d9mt-$(D9MT_VERSION).tar.gz
 D9MT_URL ?= https://github.com/samitaaissat/WoWSilicon/releases/download/$(D9MT_RELEASE)/$(D9MT_ASSET)
-D9MT_SHA256 ?= 351febe5eace3f62c8e7c32b7c53d42386687a58934ef4331d4181075be648bc
+D9MT_SHA256 ?= efc5a7d407da9518a3e95e46bf2404ce805520610e539dfd15a7ddf3ab6b2493
 D9MT_CACHE := $(BUILD_DIR)/d9mt-cache
 D9MT_RESOURCES := Sources/WoWSiliconSwift/Resources/Patching/d9mt
 
