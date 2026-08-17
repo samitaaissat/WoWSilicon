@@ -170,7 +170,13 @@ file "$STAGE/d9mt/d3d9.dll" | grep -q "PE32" || { echo "d3d9.dll is not a PE32 b
 # License notices (d9mt has no top-level LICENSE; keep upstream attributions).
 # Required: a payload without license notices must fail the build, not ship.
 cp "$WORK/d9mt/README.md" "$STAGE/d9mt/LICENSES/d9mt-README.md"
-curl -fL -o "$STAGE/d9mt/LICENSES/DXMT-LICENSE.txt" \
+# --retry like the tarball fetch above: this is the LAST step of a ~20 minute
+# build and a missing licence is deliberately fatal, so a transient rate limit
+# here throws the whole build away. Observed in practice: raw.githubusercontent
+# returned HTTP 429 after several payload builds in one session, and curl's
+# default --retry does not cover 429, hence --retry-all-errors.
+curl -fL --retry 5 --retry-delay 3 --retry-all-errors \
+  -o "$STAGE/d9mt/LICENSES/DXMT-LICENSE.txt" \
   "https://raw.githubusercontent.com/3Shain/dxmt/$DXMT_TAG/LICENSE"
 for f in LICENSES/d9mt-README.md LICENSES/DXMT-LICENSE.txt; do
   test -s "$STAGE/d9mt/$f" || { echo "MISSING license file: $f"; exit 1; }
