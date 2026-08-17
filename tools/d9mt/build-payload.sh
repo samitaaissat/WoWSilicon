@@ -11,8 +11,12 @@
 #     move onto the push-constant path, PROJECTION/TEXTUREn/lighting
 #     stay in the cold FF UBO; xform submit_avg_ms -48%) and W2 part-mode
 #     fast paths (LockBuffer direct-map skip, PrepareDraw texture-mask
-#     fast path) — perf/pass-3 branch, FINAL commit 5f7ae4d2 — see the
-#     fork's docs/PERF-ROADMAP.md)
+#     fast path) — perf/pass-3 branch, FINAL commit 5f7ae4d2 —
+#     + the BT.2446-A/ICtCp HDR present pipeline ported from mtld3d
+#     (fp16 extended-linear CAMetalLayer, curve peak following live EDR
+#     headroom; OFF by default, D9MT_HDR=1 to enable) and, from the same
+#     pass, a MEASURED-NEUTRAL pass-descriptor cache that was reverted
+#     rather than shipped — see the fork's docs/PERF-ROADMAP.md)
 #   - DXMT winemetal @ v0.80 (3Shain/dxmt, last MIT-licensed release)
 # Output: dist/d9mt-<N>.tar.gz + .sha256, layout documented in the repo plan:
 #   d9mt/d3d9.dll                              (d9mt i686 driver, build/d3d9fe.dll renamed)
@@ -27,9 +31,14 @@
 set -euo pipefail
 
 D9MT_REPO=https://github.com/samitaaissat/d9mt
-D9MT_COMMIT=5f7ae4d2dbf3d2f881bf12d2c310fba2825898ef
+D9MT_COMMIT=203baae2ee471ef4f86df1207fa07b82394f8700
 DXMT_TAG=v0.80
-PAYLOAD_VERSION="${PAYLOAD_VERSION:-7}"
+# NOTE: v8 (the HDR pipeline) is NOT published on the runtime-v1 release, so the
+# Makefile's D9MT_VERSION pin deliberately stays at 7. Bumping this default
+# rather than leaving it at 7 is intentional: with the new D9MT_COMMIT above, a
+# run defaulting to 7 would produce a d9mt-7.tar.gz whose contents differ from
+# the published d9mt-7, which is worse than a version that simply is not up yet.
+PAYLOAD_VERSION="${PAYLOAD_VERSION:-8}"
 
 cd "$(dirname "$0")"
 WORK="$PWD/work"
@@ -54,8 +63,30 @@ cp "$WORK/$DXMT_TAG/x86_64-windows/winemetal.dll"  "$STAGE/d9mt/winemetal/x86_64
 cp "$WORK/$DXMT_TAG/x86_64-unix/winemetal.so"      "$STAGE/d9mt/winemetal/x86_64-unix/"
 
 # --- d9mt driver + d9mtmetal unixlib ---
-git clone "$D9MT_REPO" "$WORK/d9mt"
-git -C "$WORK/d9mt" checkout "$D9MT_COMMIT"
+# D9MT_LOCAL_SRC=<path> builds from a local checkout instead of cloning the
+# pinned commit, for iterating on an unpushed branch. The resulting tarball is
+# for LOCAL INSTALL ONLY and must never be uploaded, because it would not
+# correspond to any commit anyone can fetch; the PROVENANCE file written below
+# stamps the tree's real HEAD (plus -dirty) so a stray tarball stays traceable.
+# Release builds leave this unset and clone the pin.
+if [[ -n "${D9MT_LOCAL_SRC:-}" ]]; then
+  LOCAL_SRC="$(cd "$D9MT_LOCAL_SRC" && pwd)"
+  echo "*** D9MT_LOCAL_SRC=$LOCAL_SRC — LOCAL BUILD, DO NOT UPLOAD ***"
+  # Copy rather than build in place: the build writes into prebuilt/ and build/
+  # and must not disturb the tree being iterated on.
+  mkdir -p "$WORK/d9mt"
+  (cd "$LOCAL_SRC" && tar -cf - --exclude=./build --exclude=./prebuilt .) \
+    | (cd "$WORK/d9mt" && tar -xf -)
+  D9MT_STAMP="$(git -C "$LOCAL_SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  if ! git -C "$LOCAL_SRC" diff --quiet HEAD 2>/dev/null; then
+    D9MT_STAMP="$D9MT_STAMP-dirty"
+  fi
+  D9MT_STAMP="local-$D9MT_STAMP"
+else
+  git clone "$D9MT_REPO" "$WORK/d9mt"
+  git -C "$WORK/d9mt" checkout "$D9MT_COMMIT"
+  D9MT_STAMP="$D9MT_COMMIT"
+fi
 
 # winemetal import setup the d9mt build links against (-L prebuilt -lwinemetal).
 # Mirrors d9mt's scripts/fetch-winemetal.sh but pinned to $DXMT_TAG: the 32-bit
@@ -145,7 +176,19 @@ for f in LICENSES/d9mt-README.md LICENSES/DXMT-LICENSE.txt; do
   test -s "$STAGE/d9mt/$f" || { echo "MISSING license file: $f"; exit 1; }
 done
 
+# Provenance stamp travels inside the tarball, so an installed payload can always
+# be traced back to a commit (or outed as a local build).
+cat > "$STAGE/d9mt/PROVENANCE" <<EOF
+payload_version=$PAYLOAD_VERSION
+d9mt_source=$D9MT_STAMP
+dxmt_tag=$DXMT_TAG
+EOF
+
 tar -czf "$DIST/d9mt-$PAYLOAD_VERSION.tar.gz" -C "$STAGE" d9mt
 (cd "$DIST" && shasum -a 256 "d9mt-$PAYLOAD_VERSION.tar.gz" > "d9mt-$PAYLOAD_VERSION.tar.gz.sha256")
-echo "Built $DIST/d9mt-$PAYLOAD_VERSION.tar.gz"
+echo "Built $DIST/d9mt-$PAYLOAD_VERSION.tar.gz  (d9mt source: $D9MT_STAMP)"
 cat "$DIST/d9mt-$PAYLOAD_VERSION.tar.gz.sha256"
+case "$D9MT_STAMP" in
+  local-*) echo "!!! LOCAL BUILD — do NOT upload this to the runtime-v1 release:"
+           echo "!!! RuntimeUpdateService auto-adopts the highest d9mt-<N> within 24h." ;;
+esac
