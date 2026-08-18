@@ -1,0 +1,60 @@
+{
+    "version": "0.1.0",
+    "id": "bdca8974-1279-4240-b59b-10cec1d77fee",
+    "timestamp": "2026-08-18T20:40:48.688691Z",
+    "vcs": {
+        "type": "git",
+        "revision": "700b3d3ebbda8a6e82c0e738ebcac42c4c6dbe92",
+        "origin": "github",
+        "repository": "https://github.com/samitaaissat/WoWSilicon.git"
+    },
+    "tool": {
+        "name": "chatter-cli"
+    },
+    "files": [
+        {
+            "path": "Makefile",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:8e568d695fac72e7a78ce8b28b091e289907f54d",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 59,
+                            "end_line": 59
+                        },
+                        {
+                            "start_line": 62,
+                            "end_line": 62
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "tools/d9mt/build-payload.sh",
+            "conversations": [
+                {
+                    "url": "git+CLAUDE_CODE:blob:8e568d695fac72e7a78ce8b28b091e289907f54d",
+                    "contributor": {
+                        "type": "ai",
+                        "model_id": "2.1.229"
+                    },
+                    "ranges": [
+                        {
+                            "start_line": 34,
+                            "end_line": 38
+                        },
+                        {
+                            "start_line": 40,
+                            "end_line": 40
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
