@@ -31,14 +31,13 @@
 set -euo pipefail
 
 D9MT_REPO=https://github.com/samitaaissat/d9mt
-# payload-v9 tag: depth-bias force-unorm fix, UI-aware HDR present (+ gate
-# retry, D9MT_HDR=force), deferred main-pass batching (D9MT_PASS_DEFER,
-# default off), v2 phase-1 POD staging. v8 (HDR test drop) was never
-# published; the version skips from 7 to 9 because the user's local install
-# already adopted a locally-built v8.
-D9MT_COMMIT=b73eb2c224a96bc6ce1d77135ab987d82a847069
+# payload-v10 tag: implicit decal bias (the actual circle-flicker fix —
+# WoW sets no app bias; v9's force-unorm advertisement reverted as a spec
+# lie), on top of v9's UI-aware HDR + pass-defer (default off) + v2
+# phase 1.
+D9MT_COMMIT=3b2c8aacbe665cd16ac01818f0f841cdd7122db4
 DXMT_TAG=v0.80
-PAYLOAD_VERSION="${PAYLOAD_VERSION:-9}"
+PAYLOAD_VERSION="${PAYLOAD_VERSION:-10}"
 
 cd "$(dirname "$0")"
 WORK="$PWD/work"
