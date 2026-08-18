@@ -31,14 +31,14 @@
 set -euo pipefail
 
 D9MT_REPO=https://github.com/samitaaissat/d9mt
-D9MT_COMMIT=203baae2ee471ef4f86df1207fa07b82394f8700
+# payload-v9 tag: depth-bias force-unorm fix, UI-aware HDR present (+ gate
+# retry, D9MT_HDR=force), deferred main-pass batching (D9MT_PASS_DEFER,
+# default off), v2 phase-1 POD staging. v8 (HDR test drop) was never
+# published; the version skips from 7 to 9 because the user's local install
+# already adopted a locally-built v8.
+D9MT_COMMIT=b73eb2c224a96bc6ce1d77135ab987d82a847069
 DXMT_TAG=v0.80
-# NOTE: v8 (the HDR pipeline) is NOT published on the runtime-v1 release, so the
-# Makefile's D9MT_VERSION pin deliberately stays at 7. Bumping this default
-# rather than leaving it at 7 is intentional: with the new D9MT_COMMIT above, a
-# run defaulting to 7 would produce a d9mt-7.tar.gz whose contents differ from
-# the published d9mt-7, which is worse than a version that simply is not up yet.
-PAYLOAD_VERSION="${PAYLOAD_VERSION:-8}"
+PAYLOAD_VERSION="${PAYLOAD_VERSION:-9}"
 
 cd "$(dirname "$0")"
 WORK="$PWD/work"
